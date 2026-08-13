@@ -2,6 +2,7 @@ package com.devboard.taskservice.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 
@@ -36,6 +37,15 @@ public class Task {
 
     public enum Status { TODO, IN_PROGRESS, DONE }
     public enum Priority { LOW, MEDIUM, HIGH }
+
+
+    @ElementCollection
+    @CollectionTable(
+        name = "task_assignees",
+        joinColumns = @JoinColumn(name = "task_id")
+    )
+    @Column(name = "assignedEmails")
+    private List<String> assignedEmails;
 
     public Task() {}
 
@@ -72,6 +82,14 @@ public class Task {
 
     public LocalDate getStartDate(){return startDate;}
     public void  setStartDate(LocalDate startDate){this.startDate= startDate;}
+
+
+    public List<String> getAssignedEmails(){
+        return assignedEmails;
+    }
+    public void setAssignedEmails(List<String> assignedEmails){
+        this.assignedEmails = assignedEmails;
+    }
 
 
 

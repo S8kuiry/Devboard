@@ -1,6 +1,7 @@
 package com.devboard.authservice.controller;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -8,9 +9,12 @@ import com.devboard.authservice.dto.AuthResponse;
 import com.devboard.authservice.dto.LoginRequest;
 import com.devboard.authservice.dto.RegisterRequest;
 import com.devboard.authservice.entity.User;
+import com.devboard.authservice.repository.UserRepository;
 import com.devboard.authservice.service.AuthService;
 
 import jakarta.validation.Valid;
+
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -18,9 +22,11 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final UserRepository userRepository;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, UserRepository userRepository) {
         this.authService = authService;
+        this.userRepository = userRepository;
     }
 
     @PostMapping("/register")
@@ -50,5 +56,34 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", e.getMessage()));
         }
+    }
+
+    @GetMapping("/emails")
+    public ResponseEntity<?> getUserEmails(){
+        try {
+            List<User> user =  userRepository.findAll();
+            List<String> emails = user.stream().map(User :: getEmail).toList();
+            return ResponseEntity.ok(emails);
+        } catch(IllegalArgumentException e) {
+            // Returns {"error": "Invalid credentials"}
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+
+    @GetMapping("/exists")
+    public ResponseEntity<?> checkUserExits(@RequestParam("email") String email ){
+        try {
+            User existEmail = userRepository.findByEmail(email);
+            return ResponseEntity.ok(existEmail != null);
+            
+        } catch(IllegalArgumentException e) {
+            // Returns {"error": "Invalid credentials"}
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    
+
     }
 }

@@ -1,5 +1,6 @@
 package com.devboard.taskservice.controller;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -18,99 +19,110 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.devboard.taskservice.entity.Task;
 import com.devboard.taskservice.repository.TaskRepository;
+import com.devboard.taskservice.service.EmailService;
+
+import jakarta.transaction.Transactional;
 
 @RestController
 @RequestMapping("/tasks")
 public class TaskController {
 
     private final TaskRepository taskRepository;
+    private final EmailService emailService;
 
-    public TaskController(TaskRepository taskRepository){
+    public TaskController(TaskRepository taskRepository, EmailService emailService) {
         this.taskRepository = taskRepository;
+        this.emailService = emailService;
     }
 
     @PostMapping
-    public ResponseEntity<?> createTask(@RequestBody Task request){
+    public ResponseEntity<?> createTask(@RequestBody Task request) {
         try {
+            List<String> assignedEmails = request.getAssignedEmails();
             Task saved = taskRepository.save(request);
+
+            if (assignedEmails != null && !assignedEmails.isEmpty()) {
+                emailService.sendTaskAssignments(assignedEmails, request.getTitle());
+            }
+
             return ResponseEntity.ok(saved);
-        } catch (IllegalArgumentException e) {
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
         }
-
     }
 
     @GetMapping
-    public ResponseEntity<?> getTasksByOwner(@RequestParam String ownerEmail ){
+    public ResponseEntity<?> getTasksByOwner(@RequestParam String ownerEmail) {
         try {
             List<Task> tasks = taskRepository.findByOwnerEmail(ownerEmail);
             return ResponseEntity.ok(tasks);
-        } catch (IllegalArgumentException e) {
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
         }
-
     }
-
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> getTasksById(@PathVariable Long id ){
-        try {
-            Optional<Task> tasks = taskRepository.findById(id);
-            return ResponseEntity.ok(tasks);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("error", e.getMessage()));
+    public ResponseEntity<?> getTasksById(@PathVariable Long id) {
+        Optional<Task> task = taskRepository.findById(id);
+        if (task.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "Task not found with id: " + id));
         }
-
+        return ResponseEntity.ok(task.get());
     }
 
+    @Transactional
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateTask(@PathVariable Long id, @RequestBody Task request){
+    public ResponseEntity<?> updateTask(@PathVariable Long id, @RequestBody Task request) {
         try {
             Optional<Task> isExisting = taskRepository.findById(id);
-            if(isExisting == null){
+            if (isExisting.isEmpty()) { // Fixed Optional null check
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", "Task not found with id: " + id));
-
+                        .body(Map.of("error", "Task not found with id: " + id));
             }
-             Task existingTask = isExisting.get();
 
-            // 2. Update fields with request data
+            Task existingTask = isExisting.get();
+
+            // FIXED: Copy lazy list into a plain Java ArrayList to avoid LazyInitializationException
+            List<String> oldAssignedEmails = existingTask.getAssignedEmails() != null
+                    ? new ArrayList<>(existingTask.getAssignedEmails())
+                    : new ArrayList<>();
+
             existingTask.setTitle(request.getTitle());
             existingTask.setDescription(request.getDescription());
             existingTask.setStatus(request.getStatus());
             existingTask.setPriority(request.getPriority());
             existingTask.setDueDate(request.getDueDate());
             existingTask.setStartDate(request.getStartDate());
+            existingTask.setAssignedEmails(request.getAssignedEmails());
 
             Task savedTask = taskRepository.save(existingTask);
+
+            emailService.sendTaskAssignmentsOnUpdate(oldAssignedEmails, request.getAssignedEmails(), request.getTitle());
+
             return ResponseEntity.ok(savedTask);
-            
-        } catch (IllegalArgumentException e) {
+
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
         }
     }
-
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteTask(@PathVariable Long id){
+    public ResponseEntity<?> deleteTask(@PathVariable Long id) {
         try {
             Optional<Task> isExist = taskRepository.findById(id);
-            if(isExist == null){
+            if (isExist.isEmpty()) { // Fixed Optional null check
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", "Task not found with id: " + id));
-
+                        .body(Map.of("error", "Task not found with id: " + id));
             }
             taskRepository.deleteById(id);
-            return ResponseEntity.ok(Map.of("message", "Task deleted successfully"));            
-        } catch (IllegalArgumentException e) {
+            return ResponseEntity.ok(Map.of("message", "Task deleted successfully"));
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
         }
     }
-
-    
 }
