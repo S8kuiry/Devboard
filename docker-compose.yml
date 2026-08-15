@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  auth-service:
+    build: ./auth-service
+    container_name: auth-service
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  task-service:
+    build: ./task-service
+    container_name: task-service
+    ports:
+      - "8081:8081"
+    environment:
+      - AUTH_SERVICE_URL=http://auth-service:8080
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "8060:8060"
+    environment:
+      - AUTH_SERVICE_URL=http://auth-service:8080
+      - TASK_SERVICE_URL=http://task-service:8081
+    depends_on:
+      - auth-service
+      - task-service
+    restart: unless-stopped
+
+  client:
+    build: ./client
+    container_name: devboard-client
+    ports:
+      - "5173:80"
+    depends_on:
+      - api-gateway
+    restart: unless-stopped

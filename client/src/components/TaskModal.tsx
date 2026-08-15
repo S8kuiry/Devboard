@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import type { SubmitEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Plus, Trash2, Sparkles, UserPlus, Calendar, Loader2, User } from 'lucide-react';
 import type { Task, TaskDraft, TaskPriority, TaskStatus } from '../types/task';
 import toast from 'react-hot-toast';
 import { useUsers } from '../context/UserContext';
+import { AddToCalendarButton } from './AddToCalendarButton';
 
 interface TaskModalProps {
   onClose: () => void;
@@ -34,10 +36,10 @@ export default function TaskModal({ onClose, onSubmit, currentUserEmail, initial
   // Filter suggestion list based on input string and exclude already added assignees
   const suggestions = assigneeInput.trim()
     ? (emails || []).filter(
-        email =>
-          email.toLowerCase().includes(assigneeInput.toLowerCase().trim()) &&
-          !formData.assignedEmails.includes(email)
-      )
+      email =>
+        email.toLowerCase().includes(assigneeInput.toLowerCase().trim()) &&
+        !formData.assignedEmails.includes(email)
+    )
     : [];
 
   const addAssignee = (emailToAdd?: string) => {
@@ -87,7 +89,7 @@ export default function TaskModal({ onClose, onSubmit, currentUserEmail, initial
       const resBody = await res.json();
 
       if (!res.ok) {
-        toast.error(resBody.error || `Failed to ${isEdit ? 'update' : 'create'} task`);
+        console.error(resBody.error || `Failed to ${isEdit ? 'update' : 'create'} task`);
         return;
       }
 
@@ -95,7 +97,7 @@ export default function TaskModal({ onClose, onSubmit, currentUserEmail, initial
       onSubmit(resBody as Task);
       onClose();
     } catch (error) {
-      toast.error("Something went wrong");
+      console.error("Something went wrong");
       console.log("Error:", error);
     } finally {
       setIsSaving(false);
@@ -106,30 +108,37 @@ export default function TaskModal({ onClose, onSubmit, currentUserEmail, initial
     refreshEmails();
   }, []);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md p-4 transition-all">
+  // Rendered into <body> so the overlay escapes the layout's `relative z-10`
+  // stacking context, which would otherwise trap it beneath the fixed sidebar.
+  return createPortal(
+    <div className="fixed inset-0 z-100 flex items-center justify-center backdrop-blur-md p-4 transition-all">
       {/* Main Glass Card */}
       <div className="relative w-full max-w-lg rounded-3xl border border-white/30 bg-slate-900/60 p-6 sm:p-7 shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] backdrop-blur-xl space-y-5 overflow-hidden">
-        
+
         {/* Decorative Top Ambient Glow Line */}
         <div className="absolute -top-px left-12 right-12 h-px bg-gradient-to-r from-transparent via-indigo-500/80 to-transparent" />
-        
+
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-white/20 pb-4">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
-              <Sparkles className="h-4 w-4" />
+        <div className='w-full flex flex-col border-b border-white/20  pb-4'>
+          <div className="flex items-center justify-between  pb-4">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <h2 className="text-base font-semibold text-slate-100 tracking-wide">
+                {initialTask ? 'Edit Task Details' : 'Create New Task'}
+              </h2>
             </div>
-            <h2 className="text-base font-semibold text-slate-100 tracking-wide">
-              {initialTask ? 'Edit Task Details' : 'Create New Task'}
-            </h2>
+
+            <button
+              onClick={onClose}
+              className="rounded-full p-1 text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
-          <button 
-            onClick={onClose} 
-            className="rounded-full p-1 text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
+
+          <p className='text-xs text-semibold text-slate-300'> Posted By : {currentUserEmail}</p>
         </div>
 
         {/* Form Body */}
@@ -137,25 +146,25 @@ export default function TaskModal({ onClose, onSubmit, currentUserEmail, initial
           {/* Title */}
           <div>
             <label className="text-xs font-medium text-slate-300">Task Title <span className="text-indigo-400">*</span></label>
-            <input 
-              required 
-              type="text" 
+            <input
+              required
+              type="text"
               placeholder="e.g., Design System Refactor"
-              value={formData.title} 
+              value={formData.title}
               onChange={e => setFormData({ ...formData, title: e.target.value })}
-              className="w-full mt-1.5 rounded-lg border border-white/20 bg-slate-950/50 px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 outline-none transition-all focus:border-indigo-500/80 focus:ring-2 focus:ring-indigo-500/20" 
+              className="w-full mt-1.5 rounded-lg border border-white/20 bg-slate-950/50 px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 outline-none transition-all focus:border-indigo-500/80 focus:ring-2 focus:ring-indigo-500/20"
             />
           </div>
 
           {/* Description */}
           <div>
             <label className="text-xs font-medium text-slate-300">Description</label>
-            <textarea 
-              rows={3} 
+            <textarea
+              rows={3}
               placeholder="Add contextual details or notes..."
-              value={formData.description} 
+              value={formData.description}
               onChange={e => setFormData({ ...formData, description: e.target.value })}
-              className="w-full mt-1.5 rounded-lg border border-white/20 bg-slate-950/50 px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 outline-none transition-all focus:border-indigo-500/80 focus:ring-2 focus:ring-indigo-500/20 resize-none" 
+              className="w-full mt-1.5 rounded-lg border border-white/20 bg-slate-950/50 px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 outline-none transition-all focus:border-indigo-500/80 focus:ring-2 focus:ring-indigo-500/20 resize-none"
             />
           </div>
 
@@ -163,8 +172,8 @@ export default function TaskModal({ onClose, onSubmit, currentUserEmail, initial
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-slate-300">Status</label>
-              <select 
-                value={formData.status} 
+              <select
+                value={formData.status}
                 onChange={e => setFormData({ ...formData, status: e.target.value as TaskStatus })}
                 className="w-full mt-1.5 rounded-lg border border-white/20 bg-slate-950/50 px-3.5 py-2.5 text-xs text-slate-200 outline-none transition-all focus:border-indigo-500/80 focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
               >
@@ -176,8 +185,8 @@ export default function TaskModal({ onClose, onSubmit, currentUserEmail, initial
 
             <div>
               <label className="text-xs font-medium text-slate-300">Priority</label>
-              <select 
-                value={formData.priority} 
+              <select
+                value={formData.priority}
                 onChange={e => setFormData({ ...formData, priority: e.target.value as TaskPriority })}
                 className="w-full mt-1.5 rounded-lg border border-white/20 bg-slate-950/50 px-3.5 py-2.5 text-xs text-slate-200 outline-none transition-all focus:border-indigo-500/80 focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
               >
@@ -194,22 +203,22 @@ export default function TaskModal({ onClose, onSubmit, currentUserEmail, initial
               <label className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-300">
                 <Calendar className="h-3.5 w-3.5 text-slate-400" /> Start Date
               </label>
-              <input 
-                type="date" 
-                value={formData.startDate || ''} 
+              <input
+                type="date"
+                value={formData.startDate || ''}
                 onChange={e => setFormData({ ...formData, startDate: e.target.value })}
-                className="w-full mt-1.5 rounded-lg border border-white/20 bg-slate-950/50 px-3.5 py-2.5 text-xs text-white [color-scheme:dark] outline-none focus:border-indigo-500 transition-all" 
+                className="w-full mt-1.5 rounded-lg border border-white/20 bg-slate-950/50 px-3.5 py-2.5 text-xs text-white [color-scheme:dark] outline-none focus:border-indigo-500 transition-all"
               />
             </div>
             <div>
               <label className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-300">
                 <Calendar className="h-3.5 w-3.5 text-slate-400" /> Due Date
               </label>
-              <input 
-                type="date" 
-                value={formData.dueDate || ''} 
+              <input
+                type="date"
+                value={formData.dueDate || ''}
                 onChange={e => setFormData({ ...formData, dueDate: e.target.value })}
-                className="w-full mt-1.5 rounded-lg border border-white/20 bg-slate-950/50 px-3.5 py-2.5 text-xs text-white [color-scheme:dark] outline-none focus:border-indigo-500 transition-all" 
+                className="w-full mt-1.5 rounded-lg border border-white/20 bg-slate-950/50 px-3.5 py-2.5 text-xs text-white [color-scheme:dark] outline-none focus:border-indigo-500 transition-all"
               />
             </div>
           </div>
@@ -221,23 +230,23 @@ export default function TaskModal({ onClose, onSubmit, currentUserEmail, initial
             </label>
             <div className="flex gap-2 mt-1.5">
               <div className="relative flex-1">
-                <input 
-                  type="email" 
-                  placeholder="assignee@example.com" 
-                  value={assigneeInput} 
+                <input
+                  type="email"
+                  placeholder="assignee@example.com"
+                  value={assigneeInput}
                   onChange={e => {
                     setAssigneeInput(e.target.value);
                     setShowSuggestions(true);
                   }}
                   onFocus={() => setShowSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                  onKeyDown={e => { 
-                    if (e.key === 'Enter') { 
-                      e.preventDefault(); 
-                      addAssignee(); 
-                    } 
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addAssignee();
+                    }
                   }}
-                  className="w-full rounded-lg border border-white/20 bg-slate-950/50 px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 outline-none transition-all focus:border-indigo-500/80 focus:ring-2 focus:ring-indigo-500/20" 
+                  className="w-full rounded-lg border border-white/20 bg-slate-950/50 px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 outline-none transition-all focus:border-indigo-500/80 focus:ring-2 focus:ring-indigo-500/20"
                 />
 
                 {/* Search Autocomplete Suggestions List */}
@@ -261,9 +270,9 @@ export default function TaskModal({ onClose, onSubmit, currentUserEmail, initial
                 )}
               </div>
 
-              <button 
-                type="button" 
-                onClick={() => addAssignee()} 
+              <button
+                type="button"
+                onClick={() => addAssignee()}
                 className="px-3.5 py-2.5 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-indigo-300 text-xs font-medium transition-all flex items-center justify-center shrink-0"
               >
                 <Plus className="h-4 w-4" />
@@ -274,14 +283,14 @@ export default function TaskModal({ onClose, onSubmit, currentUserEmail, initial
             {formData.assignedEmails.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2.5 max-h-20 overflow-y-auto">
                 {formData.assignedEmails.map((email) => (
-                  <span 
-                    key={email} 
+                  <span
+                    key={email}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/20 bg-indigo-500/10 px-2.5 py-1 text-[11px] font-medium text-indigo-200 shadow-sm transition-all hover:bg-indigo-500/20"
                   >
                     {email}
-                    <button 
-                      type="button" 
-                      onClick={() => removeAssignee(email)} 
+                    <button
+                      type="button"
+                      onClick={() => removeAssignee(email)}
                       className="text-indigo-400 hover:text-rose-400 transition-colors"
                     >
                       <Trash2 className="h-3 w-3" />
@@ -291,6 +300,10 @@ export default function TaskModal({ onClose, onSubmit, currentUserEmail, initial
               </div>
             )}
           </div>
+
+
+          <AddToCalendarButton title={formData?.title} dueDate={formData?.dueDate}
+            description={formData?.description} priority={formData?.priority} />
 
           {/* Action Button */}
           <div className="pt-2">
@@ -311,6 +324,7 @@ export default function TaskModal({ onClose, onSubmit, currentUserEmail, initial
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

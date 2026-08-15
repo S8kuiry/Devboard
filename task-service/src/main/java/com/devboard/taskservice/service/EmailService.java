@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.devboard.taskservice.client.AuthClient;
@@ -45,12 +46,19 @@ public class EmailService {
     }
 
     // Method 1: For POST (Sends emails to all assigned users)
+    //
+    // @Async because the callers are @Transactional: an SMTP round trip per assignee
+    // plus a Feign call to auth-service kept the JDBC connection checked out for
+    // seconds, starving the pool for every other in-flight request. Both arguments are
+    // plain detached lists, so they are safe to read off the request thread.
+    @Async
     public void sendTaskAssignments(List<String> assignedEmails, String taskTitle) {
         processTaskAssignments(assignedEmails, taskTitle);
 
     }
 
     // Method 2: For PUT (Filters and sends emails ONLY to newly added assignees)
+    @Async
     public void sendTaskAssignmentsOnUpdate(List<String> oldEmails, List<String> newEmails, String taskTitle) {
         if (newEmails == null || newEmails.isEmpty()) {
             return;

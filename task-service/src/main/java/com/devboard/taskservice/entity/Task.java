@@ -39,7 +39,11 @@ public class Task {
     public enum Priority { LOW, MEDIUM, HIGH }
 
 
-    @ElementCollection
+    // EAGER, not the @ElementCollection default of LAZY: open-in-view is off, so the
+    // Hibernate session is already closed by the time Jackson serializes the response.
+    // A lazy PersistentBag here made every GET that returns a Task blow up with
+    // LazyInitializationException -> HttpMessageNotWritableException -> 500.
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(
         name = "task_assignees",
         joinColumns = @JoinColumn(name = "task_id")

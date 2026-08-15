@@ -13,6 +13,8 @@ public interface TaskRepository extends JpaRepository<Task,Long> {
 
     List<Task> findByOwnerEmailAndStatus(String ownerEmail, Task.Status status);
     List<Task> findByOwnerEmailAndPriority(String ownerEmail, Task.Priority priority);
+    List<Task> findByAssignedEmailsContaining(String assignedEmail);
+
 
 
     

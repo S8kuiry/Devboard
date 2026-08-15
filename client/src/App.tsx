@@ -4,6 +4,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import DashboardLayout from './layouts/DashboardLayout'
 import Dashboard from './pages/Dashboard'
+import AssignedTask from './pages/AssignedTask'
 
 // Checks token presence and JWT expiration
 const isTokenValid = (): boolean => {
@@ -47,6 +48,8 @@ export default function App() {
           {/* Protected Routes inside Sidebar Layout */}
           <Route element={<ProtectedRoute />}>
             <Route index path="/dashboard" element={<Dashboard />} />
+            <Route index path="/assigned" element={<AssignedTask />} />
+
             <Route path="/tasks" element={<div>All Tasks Page</div>} />
             <Route path="/architecture" element={<div>Architecture Page</div>} />
           </Route>

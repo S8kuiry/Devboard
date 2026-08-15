@@ -3,12 +3,12 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
   CheckSquare,
-  User as UserIcon,
   LogOut,
-  Activity,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  UserCheck
 } from 'lucide-react'
+import { useUsers } from '../context/UserContext'
 
 interface User {
   name: string
@@ -21,6 +21,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
+  const { unseenCount } = useUsers(); // 👈 Pull unseenCount straight from context!
   const navigate = useNavigate()
   const [user, setUser] = useState<User | null>(null)
 
@@ -42,19 +43,16 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   }
 
   const linkStyle = ({ isActive }: { isActive: boolean }) =>
-    `w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition ${
-      collapsed ? 'justify-center' : ''
-    } ${
-      isActive
-        ? 'bg-indigo-600/15 text-indigo-300 border border-indigo-500/30'
-        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+    `w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition ${collapsed ? 'justify-center' : ''
+    } ${isActive
+      ? 'bg-indigo-600/15 text-indigo-300 border border-indigo-500/30'
+      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
     }`
 
   return (
     <aside
-      className={`fixed top-0 left-0 z-30 h-screen border-r border-slate-800/80 bg-slate-950/70 backdrop-blur-xl flex flex-col justify-between p-4 transition-[width] duration-200 ${
-        collapsed ? 'w-20' : 'w-70'
-      }`}
+      className={`fixed top-0 left-0 z-30 h-screen border-r border-slate-800/80 bg-slate-950/70 backdrop-blur-xl flex flex-col justify-between p-4 transition-[width] duration-200 ${collapsed ? 'w-20' : 'w-70'
+        }`}
     >
       <div className="space-y-6">
         {/* Brand Header */}
@@ -76,9 +74,8 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         <button
           onClick={onToggle}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 transition ${
-            collapsed ? 'justify-center' : ''
-          }`}
+          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 transition ${collapsed ? 'justify-center' : ''
+            }`}
         >
           {collapsed ? (
             <PanelLeftOpen className="h-4 w-4 shrink-0" />
@@ -102,21 +99,32 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             {!collapsed && <span>Dashboard</span>}
           </NavLink>
 
+          <NavLink to="/assigned" className={linkStyle} title="Task Assigned">
+            <div className="flex items-center gap-3 min-w-0">
+              <UserCheck className="h-4 w-4 shrink-0 text-indigo-400" />
+              {!collapsed && <span className="truncate">Task Assigned</span>}
+            </div>
+
+            {/* Floating Badge */}
+            {unseenCount > 0 && (
+              <span
+                className={`flex items-center justify-center rounded-full bg-indigo-500 text-white font-mono font-bold text-[10px] shadow-lg shadow-indigo-500/50 ${collapsed
+                    ? 'absolute top-2 right-2 h-2.5 w-2.5 p-0 bg-indigo-400 animate-pulse'
+                    : 'px-1.5 py-0.5 min-w-[18px] h-4 text-center'
+                  }`}
+              >
+                {!collapsed && (unseenCount > 99 ? '99+' : unseenCount)}
+              </span>
+            )}
+          </NavLink>
+
           {/* Secondary View: Task Management */}
           <NavLink to="/tasks" className={linkStyle} title="Task Board">
             <CheckSquare className="h-4 w-4 shrink-0 text-slate-400" />
             {!collapsed && <span>Task Board</span>}
           </NavLink>
 
-          {/* <div className="pt-4 px-2 pb-2 text-[10px] font-mono uppercase tracking-widest text-slate-500">
-            Account
-          </div> */}
 
-          {/* Auth Service / Profile */}
-          {/* <NavLink to="/profile" className={linkStyle}>
-            <UserIcon className="h-4 w-4 text-slate-400" />
-            <span>My Profile</span>
-          </NavLink> */}
         </nav>
       </div>
 

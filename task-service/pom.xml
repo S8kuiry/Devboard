@@ -55,14 +55,10 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- Spring Cloud (Eureka Client & OpenFeign) -->
+        <!-- Spring Cloud (OpenFeign) -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-openfeign</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
         </dependency>
 
         <!-- Testing -->

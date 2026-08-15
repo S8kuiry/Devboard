@@ -1,26 +1,25 @@
 import { useEffect, useState } from 'react'
 import {
   CheckCircle2, Plus, UserCheck, Layers, Search,
-  Clock, Kanban, Table as TableIcon, Trash2, Calendar, ArrowUpDown,
+  Clock, Kanban, Table as TableIcon, Calendar, ArrowUpDown,
   Inbox,
   Edit3
 } from 'lucide-react'
 import type { Task, TaskPriority, TaskStatus } from '../types/task'
 import TaskModal from '../components/TaskModal'
-import DeleteModal from '../components/DeleteModal'
 import Loader from '../components/Loader'
-import toast from 'react-hot-toast'
 import { useUsers } from '../context/UserContext'
+import toast from 'react-hot-toast'
 
 export type SortOption = 'priority' | 'status' | 'assigned' | 'dueDate'
 
 // --- Initial Mock Data ---
 const INITIAL_TASKS: Task[] = [
- 
+
 ]
 
-export default function Dashboard() {
-  const {user} = useUsers()
+export default function AssignedTask() {
+  const { markAssignedAsSeen, fetchAssignedTasks, user } = useUsers();
   const taskUrl = import.meta.env.VITE_TASK_URL
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban')
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS)
@@ -32,8 +31,7 @@ export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
 
-  // Id of the task pending delete confirmation
-  const [deleteTaskId, setDeleteTaskId] = useState<number | null>(null)
+
 
   const CURRENT_USER_EMAIL = user?.email
 
@@ -52,46 +50,40 @@ export default function Dashboard() {
     setTasks(prev => prev.some(t => t.id === savedTask.id)
       ? prev.map(t => t.id === savedTask.id ? savedTask : t)
       : [...prev, savedTask])
-    fetchTasks();
+    fetchAssignedTasks();
     setIsModalOpen(false)
   }
 
-  const handleStatusChange = async(id: number, newStatus: TaskStatus, task:Task) => {
+  const handleStatusChange = async (id: number, newStatus: TaskStatus, task: Task) => {
     setTasks(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t))
     try {
       const data = {
         title: task.title,
-      description: task.description,
-      status: newStatus,
-      priority: task.priority,
-      ownerEmail: task.ownerEmail,
-      assignedEmails: task.assignedEmails,
-      startDate: task.startDate || null,
-      dueDate: task.dueDate || null
+        description: task.description,
+        status: newStatus,
+        priority: task.priority,
+        ownerEmail: task.ownerEmail,
+        assignedEmails: task.assignedEmails,
+        startDate: task.startDate || null,
+        dueDate: task.dueDate || null
 
       }
-      const res = await fetch(`${taskUrl}/tasks/${id}`,{
-        method:'PUT',
+      const res = await fetch(`${taskUrl}/tasks/${id}`, {
+        method: 'PUT',
         headers: { "Content-Type": "application/json" },
-        body:JSON.stringify(data)
+        body: JSON.stringify(data)
 
 
       })
 
-      if(res.ok){
+      if (res.ok) {
         toast.success("Task Status chnaged successfully ")
       }
-      
+
     } catch (error) {
       console.log(error)
-      
-    }
-  }
 
-  // Opens the confirmation modal; the actual delete happens in handleDelete
-  const handleDeleteTask = (e: React.MouseEvent, id: number) => {
-    e.stopPropagation()
-    setDeleteTaskId(id)
+    }
   }
 
   // --- Filtering & Sorting ---
@@ -164,64 +156,49 @@ export default function Dashboard() {
   }
 
 
-  const fetchTasks = async () => {
-    // The user arrives from context a tick after mount, so skip until we have it
-    if (!CURRENT_USER_EMAIL) return
-    setIsLoading(true)
-    try {
-      // GET /tasks requires ownerEmail and responds with a bare array of tasks
-      const res = await fetch(`${taskUrl}/tasks?ownerEmail=${encodeURIComponent(CURRENT_USER_EMAIL)}`, {
-        method: 'GET'
-      })
-      const resBody = await res.json()
-      if (res.ok) {
-        setTasks(resBody as Task[])
-      } else {
-        console.error(resBody.error || "Failed to fetch task")
-      }
+  // const fetchAssignedTasks = async () => {
+  //   // The user arrives from context a tick after mount, so skip until we have it
+  //   if (!CURRENT_USER_EMAIL) return
+  //   setIsLoading(true)
+  //   try {
+  //     // GET /tasks requires ownerEmail and responds with a bare array of tasks
+  //     const res = await fetch(`${taskUrl}/tasks?assignedEmail=${encodeURIComponent(CURRENT_USER_EMAIL)}`, {
+  //       method: 'GET'
+  //     })
+  //     const resBody = await res.json()
+  //     if (res.ok) {
+  //       setTasks(resBody as Task[])
+  //     } else {
+  //       console.error(resBody.error || "Failed to fetch task")
+  //     }
 
-    } catch (error) {
-      console.error("Something went wrong")
-      console.log("Error:", error)
+  //   } catch (error) {
+  //     console.error("Something went wrong")
+  //     console.log("Error:", error)
 
-    } finally {
-      // finally, so a failed fetch clears the spinner instead of hanging on it
-      setIsLoading(false)
-    }
-  }
+  //   } finally {
+  //     // finally, so a failed fetch clears the spinner instead of hanging on it
+  //     setIsLoading(false)
+  //   }
+  // }
 
 
   useEffect(() => {
-    fetchTasks()
+    // Refresh tasks and immediately mark as seen when visiting page
+    const load = async () => {
+      setIsLoading(true)
+      try {
+        await fetchAssignedTasks()
+      } finally {
+        // finally, so a failed fetch clears the spinner instead of hanging on it
+        setIsLoading(false)
+      }
+    }
+    load()
+    markAssignedAsSeen();
   }, [CURRENT_USER_EMAIL])
 
-  const handleDelete = async(id:number)=>{
-    try {
 
-      const res = await fetch(`${taskUrl}/tasks/${id}`,{
-        method: 'DELETE',
-
-      })
-
-      const resBody = await res.json()
-      if(res.ok){
-        setTasks(prev => prev.filter(t => t.id !== id))
-        toast.success(resBody.message || "Task deleted successfully")
-
-      }else{
-        console.error(resBody.error || "Task not deleted")
-      }
-      
-    } catch (error) {
-      console.error("Something went wrong");
-      console.log("Error:", error);
-      
-
-      
-    }
-  }
-
-  
 
   return (
     <div className="pt-6 pl-9 lg:pl-11 pr-4 pb-20 space-y-6 max-w-[98%] w-full mx-auto">
@@ -229,7 +206,7 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-white">Task Management Board</h1>
+          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-white">Task Assigned Board</h1>
           <p className="text-xs text-slate-400 mt-1">Organize microservice tasks and track team assignments</p>
         </div>
 
@@ -281,7 +258,6 @@ export default function Dashboard() {
             >
               <option value="priority" className="bg-slate-900 text-slate-200">Priority</option>
               <option value="status" className="bg-slate-900 text-slate-200">Status</option>
-              {/* <option value="assigned" className="bg-slate-900 text-slate-200">Assigned</option> */}
               <option value="dueDate" className="bg-slate-900 text-slate-200">Due Date</option>
             </select>
           </div>
@@ -331,7 +307,7 @@ export default function Dashboard() {
                 ) : (
                   columnTasks.map((task) => (
                     <div
-                    onClick={()=>setSelectedTask(task)}
+                      onClick={() => setSelectedTask(task)}
                       key={task.id}
                       className="group relative rounded-lg border border-white/10 bg-slate-700/5 p-4 space-y-3 hover:border-white/20 hover:bg-slate-900/90 shadow-lg backdrop-blur-md transition-all duration-200 "
                     >
@@ -344,13 +320,7 @@ export default function Dashboard() {
                         >
                           {task.title}
                         </h3>
-                        <button
-                          onClick={(e) => handleDeleteTask(e, task.id)}
-                          className="text-slate-400 hover:text-rose-400 p-1 rounded hover:bg-white/5 transition shrink-0"
-                          title="Delete Task"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+
                       </div>
 
                       {/* Description */}
@@ -382,7 +352,7 @@ export default function Dashboard() {
                                 className="inline-flex items-center gap-1 rounded-full border border-indigo-500/30 bg-indigo-500/15 px-2 py-0.5 text-[9px] font-mono text-indigo-300 max-w-[110px]"
                               >
                                 <span className="h-1 w-1 rounded-full bg-indigo-400 shrink-0" />
-                                <span className="truncate">{email}</span>
+                                <span className="truncate">{email.split('@')[0]}</span>
                               </span>
                             ))}
                           </div>
@@ -394,7 +364,7 @@ export default function Dashboard() {
                         {/* Status Selector */}
                         <select
                           value={task.status}
-                          onChange={(e) => handleStatusChange(task.id, e.target.value as TaskStatus,task)}
+                          onChange={(e) => handleStatusChange(task.id, e.target.value as TaskStatus, task)}
                           className="bg-slate-950/80 border border-white/10 rounded-md px-2 py-1 text-slate-200 outline-none focus:border-indigo-500 cursor-pointer"
                         >
                           <option value="TODO" className="bg-slate-900 text-indigo-200">TODO</option>
@@ -457,7 +427,7 @@ export default function Dashboard() {
                       <td className="p-4">
                         <select
                           value={task.status}
-                          onChange={(e) => handleStatusChange(task.id, e.target.value as TaskStatus,task)}
+                          onChange={(e) => handleStatusChange(task.id, e.target.value as TaskStatus, task)}
                           className="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-[11px] text-slate-300 outline-none focus:border-indigo-500"
                         >
                           <option value="TODO">TODO</option>
@@ -488,12 +458,10 @@ export default function Dashboard() {
                         {task.dueDate || 'N/A'}
                       </td>
                       <td className="p-4 text-right">
-                        <button onClick={()=>setSelectedTask(task)} className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Delete Task">
+                        <button onClick={() => setSelectedTask(task)} className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Delete Task">
                           <Edit3 className="h-4 w-4" />
                         </button>
-                        <button onClick={()=>setDeleteTaskId(task.id)} className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Delete Task">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+
                       </td>
                     </tr>
                   ))
@@ -515,23 +483,15 @@ export default function Dashboard() {
         />
       )}
 
-      {deleteTaskId !== null && (
-        <DeleteModal
-          isOpen
-          onClose={() => setDeleteTaskId(null)}
-          onConfirm={() => handleDelete(deleteTaskId)}
-          title="Delete Task"
-          itemName={tasks.find(t => t.id === deleteTaskId)?.title}
-        />
-      )}
 
-      {selectedTask && CURRENT_USER_EMAIL && (
+
+      {selectedTask && (
         <TaskModal
-        
+
           key={selectedTask ? selectedTask.id : 'new-task'}
-          onClose={() => {setIsModalOpen(false); setSelectedTask(null)}}
+          onClose={() => { setIsModalOpen(false); setSelectedTask(null) }}
           onSubmit={handleSaveTask}
-          currentUserEmail={CURRENT_USER_EMAIL}
+          currentUserEmail={selectedTask.ownerEmail}
           initialTask={selectedTask}
         />
 

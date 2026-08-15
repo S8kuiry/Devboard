@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, Link, data } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { Lock, Mail, ArrowRight, Terminal, ShieldCheck, Layers, Zap, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -34,7 +34,7 @@ export default function Login() {
 
 
     } catch (error) {
-      toast.error('Server unavailable. Please try again later.');
+      console.error('Server unavailable. Please try again later.');
 
     } finally {
       setLoader(false)

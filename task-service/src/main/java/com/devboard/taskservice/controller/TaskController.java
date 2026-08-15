@@ -35,6 +35,7 @@ public class TaskController {
         this.emailService = emailService;
     }
 
+    @Transactional
     @PostMapping
     public ResponseEntity<?> createTask(@RequestBody Task request) {
         try {
@@ -52,7 +53,7 @@ public class TaskController {
         }
     }
 
-    @GetMapping
+    @GetMapping(params = "ownerEmail")
     public ResponseEntity<?> getTasksByOwner(@RequestParam String ownerEmail) {
         try {
             List<Task> tasks = taskRepository.findByOwnerEmail(ownerEmail);
@@ -63,6 +64,21 @@ public class TaskController {
         }
     }
 
+
+     @GetMapping(params = "assignedEmail")
+    public ResponseEntity<?> getAssignedTasks(@RequestParam String assignedEmail) {
+        try {
+            List<Task> assignedTasks = taskRepository.findByAssignedEmailsContaining(assignedEmail);
+            return ResponseEntity.ok(assignedTasks);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    
+
     @GetMapping("/{id}")
     public ResponseEntity<?> getTasksById(@PathVariable Long id) {
         Optional<Task> task = taskRepository.findById(id);
@@ -72,6 +88,8 @@ public class TaskController {
         }
         return ResponseEntity.ok(task.get());
     }
+
+   
 
     @Transactional
     @PutMapping("/{id}")
@@ -85,7 +103,8 @@ public class TaskController {
 
             Task existingTask = isExisting.get();
 
-            // FIXED: Copy lazy list into a plain Java ArrayList to avoid LazyInitializationException
+            // FIXED: Copy lazy list into a plain Java ArrayList to avoid
+            // LazyInitializationException
             List<String> oldAssignedEmails = existingTask.getAssignedEmails() != null
                     ? new ArrayList<>(existingTask.getAssignedEmails())
                     : new ArrayList<>();
@@ -100,7 +119,8 @@ public class TaskController {
 
             Task savedTask = taskRepository.save(existingTask);
 
-            emailService.sendTaskAssignmentsOnUpdate(oldAssignedEmails, request.getAssignedEmails(), request.getTitle());
+            emailService.sendTaskAssignmentsOnUpdate(oldAssignedEmails, request.getAssignedEmails(),
+                    request.getTitle());
 
             return ResponseEntity.ok(savedTask);
 
