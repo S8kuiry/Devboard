@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, X, Trash2, Loader2 } from 'lucide-react';
 
 export interface DeleteModalProps {
@@ -51,8 +52,9 @@ export default function DeleteModal({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 transition-all">
+  // Rendered into <body> so the overlay escapes layout stacking contexts & sidebar z-indexes
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 transition-all">
       {/* Modal Container */}
       <div 
         className="relative w-full max-w-md rounded-xl border border-rose-500/20 bg-slate-900/80 p-6 shadow-[0_8px_32px_0_rgba(225,29,72,0.15)] backdrop-blur-2xl space-y-5 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
@@ -93,7 +95,7 @@ export default function DeleteModal({
           {description}
         </p>
 
-        {/* Optional Type-to-Confirm Input (GitHub / Vercel Style) */}
+        {/* Optional Type-to-Confirm Input */}
         {requireVerification && (
           <div className="space-y-2 pt-1">
             <label className="text-[11px] font-mono text-slate-400 block">
@@ -140,6 +142,7 @@ export default function DeleteModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

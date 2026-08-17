@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { Task } from "../types/task"; // Adjust path to your Task type
+import type { Plan } from "../types/plan";
 
 interface User {
   name: string;
@@ -9,12 +10,14 @@ interface User {
 interface UserContextType {
   
   emails: string[];
+  plansTasks:Plan[];
   refreshEmails: () => Promise<void>;
   user: User | null;
   assignedTasks: Task[];
   unseenCount: number;
   fetchAssignedTasks: () => Promise<void>;
   markAssignedAsSeen: () => void;
+  fetchPlans : ()=> void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -23,6 +26,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [emails, setEmails] = useState<string[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [assignedTasks, setAssignedTasks] = useState<Task[]>([]);
+  const [plansTasks,setPlans] = useState<Plan[]>([]) 
   const [unseenCount, setUnseenCount] = useState<number>(0);
 
   const authUrl = import.meta.env.VITE_AUTH_URL;
@@ -82,6 +86,24 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const fetchPlans = async () => {
+  if (!user?.email) return;
+  try {
+    const res = await fetch(
+      `${taskUrl}/plans?ownerEmail=${encodeURIComponent(user.email)}`
+    );
+    const resBody = await res.json();
+    if (!res.ok) throw new Error(resBody.error || "Failed to fetch plans");
+    
+    // Spring returns List<Plan> directly, so set resBody directly
+    setPlans(resBody);
+  } catch (error) {
+    console.error("Error fetching plans:", error);
+  }
+};
+
+
+
   // 4. Mark all assigned tasks as "seen" (called when user opens /assigned page)
   const markAssignedAsSeen = () => {
     if (!user?.email || assignedTasks.length === 0) return;
@@ -97,6 +119,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     fetchEmails();
     fetchUser();
+    fetchPlans(); // <--- ADD THIS HERE
   }, []);
 
   // Fetch assigned tasks whenever user session is ready
@@ -111,11 +134,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       value={{
         emails,
         user,
+        plansTasks,
+        
         assignedTasks,
         unseenCount,
         refreshEmails: fetchEmails,
         fetchAssignedTasks,
         markAssignedAsSeen,
+        fetchPlans
+       
+        
       }}
     >
       {children}

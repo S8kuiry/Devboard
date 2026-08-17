@@ -5,6 +5,7 @@ import Register from './pages/Register'
 import DashboardLayout from './layouts/DashboardLayout'
 import Dashboard from './pages/Dashboard'
 import AssignedTask from './pages/AssignedTask'
+import PlansPage from './pages/PlansPage'
 
 // Checks token presence and JWT expiration
 const isTokenValid = (): boolean => {
@@ -49,6 +50,8 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route index path="/dashboard" element={<Dashboard />} />
             <Route index path="/assigned" element={<AssignedTask />} />
+            <Route index path="/plans" element={<PlansPage />} />
+
 
             <Route path="/tasks" element={<div>All Tasks Page</div>} />
             <Route path="/architecture" element={<div>Architecture Page</div>} />

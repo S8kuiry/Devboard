@@ -119,9 +119,9 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           </NavLink>
 
           {/* Secondary View: Task Management */}
-          <NavLink to="/tasks" className={linkStyle} title="Task Board">
+          <NavLink to="/plans" className={linkStyle} title="Task Board">
             <CheckSquare className="h-4 w-4 shrink-0 text-slate-400" />
-            {!collapsed && <span>Task Board</span>}
+            {!collapsed && <span>Plan Board</span>}
           </NavLink>
 
 

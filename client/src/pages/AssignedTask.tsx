@@ -19,10 +19,10 @@ const INITIAL_TASKS: Task[] = [
 ]
 
 export default function AssignedTask() {
-  const { markAssignedAsSeen, fetchAssignedTasks, user } = useUsers();
+  const { markAssignedAsSeen, fetchAssignedTasks, user,assignedTasks } = useUsers();
   const taskUrl = import.meta.env.VITE_TASK_URL
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban')
-  const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS)
+  const [tasks, setTasks] = useState<Task[]>(assignedTasks)
   // True until the first /tasks response lands, and again on every refetch.
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
