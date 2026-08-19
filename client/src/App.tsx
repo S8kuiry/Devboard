@@ -53,8 +53,6 @@ export default function App() {
             <Route index path="/plans" element={<PlansPage />} />
 
 
-            <Route path="/tasks" element={<div>All Tasks Page</div>} />
-            <Route path="/architecture" element={<div>Architecture Page</div>} />
           </Route>
 
           {/* Default Redirects */}

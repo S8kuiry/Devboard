@@ -54,6 +54,12 @@ export default function Dashboard() {
       : [...prev, savedTask])
     fetchTasks();
     setIsModalOpen(false)
+    setSelectedTask(null)
+  }
+
+  const handleCloseTaskModal = () => {
+    setIsModalOpen(false)
+    setSelectedTask(null)
   }
 
   const handleStatusChange = async(id: number, newStatus: TaskStatus, task:Task) => {
@@ -331,7 +337,7 @@ export default function Dashboard() {
                 ) : (
                   columnTasks.map((task) => (
                     <div
-                    onClick={()=>setSelectedTask(task)}
+                    onClick={() => handleOpenEditModal(task)}
                       key={task.id}
                       className="group relative rounded-lg border border-white/10 bg-slate-700/5 p-4 space-y-3 hover:border-white/20 hover:bg-slate-900/90 shadow-lg backdrop-blur-md transition-all duration-200 "
                     >
@@ -488,7 +494,7 @@ export default function Dashboard() {
                         {task.dueDate || 'N/A'}
                       </td>
                       <td className="p-4 text-right">
-                        <button onClick={()=>setSelectedTask(task)} className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Delete Task">
+                        <button onClick={() => handleOpenEditModal(task)} className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Edit Task">
                           <Edit3 className="h-4 w-4" />
                         </button>
                         <button onClick={()=>setDeleteTaskId(task.id)} className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Delete Task">
@@ -508,7 +514,7 @@ export default function Dashboard() {
       {isModalOpen && CURRENT_USER_EMAIL && (
         <TaskModal
           key={selectedTask ? selectedTask.id : 'new-task'}
-          onClose={() => setIsModalOpen(false)}
+          onClose={handleCloseTaskModal}
           onSubmit={handleSaveTask}
           currentUserEmail={CURRENT_USER_EMAIL}
           initialTask={selectedTask}
@@ -525,17 +531,6 @@ export default function Dashboard() {
         />
       )}
 
-      {selectedTask && CURRENT_USER_EMAIL && (
-        <TaskModal
-        
-          key={selectedTask ? selectedTask.id : 'new-task'}
-          onClose={() => {setIsModalOpen(false); setSelectedTask(null)}}
-          onSubmit={handleSaveTask}
-          currentUserEmail={CURRENT_USER_EMAIL}
-          initialTask={selectedTask}
-        />
-
-      )}
     </div>
   )
 }

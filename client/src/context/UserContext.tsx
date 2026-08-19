@@ -12,12 +12,15 @@ interface UserContextType {
   emails: string[];
   plansTasks:Plan[];
   refreshEmails: () => Promise<void>;
+  refreshUser: () => void;
   user: User | null;
   assignedTasks: Task[];
   unseenCount: number;
   fetchAssignedTasks: () => Promise<void>;
   markAssignedAsSeen: () => void;
   fetchPlans : ()=> void;
+  loaders:boolean;
+  setLoaders: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -28,6 +31,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [assignedTasks, setAssignedTasks] = useState<Task[]>([]);
   const [plansTasks,setPlans] = useState<Plan[]>([]) 
   const [unseenCount, setUnseenCount] = useState<number>(0);
+const [loaders, setLoaders] = useState<boolean>(false);
 
   const authUrl = import.meta.env.VITE_AUTH_URL;
   const taskUrl = import.meta.env.VITE_TASK_URL;
@@ -45,15 +49,35 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // 2. Fetch logged-in user from localStorage
-  const fetchUser = () => {
-    const res = localStorage.getItem('user');
-    if (res) {
-      try {
-        setUser(JSON.parse(res));
-      } catch (e) {
-        console.error("Failed to parse user session", e);
+  // Keep React state in sync whenever the authenticated browser session changes.
+  const refreshUser = () => {
+    const storedUser = localStorage.getItem('user');
+
+    if (!storedUser) {
+      setUser(null);
+      setAssignedTasks([]);
+      setPlans([]);
+      setUnseenCount(0);
+      return;
+    }
+
+    try {
+      const nextUser: User = JSON.parse(storedUser);
+
+      if (user?.email !== nextUser.email) {
+        setAssignedTasks([]);
+        setPlans([]);
+        setUnseenCount(0);
       }
+
+      setUser(nextUser);
+    } catch (error) {
+      console.error("Failed to parse user session", error);
+      localStorage.removeItem('user');
+      setUser(null);
+      setAssignedTasks([]);
+      setPlans([]);
+      setUnseenCount(0);
     }
   };
 
@@ -118,8 +142,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     fetchEmails();
-    fetchUser();
-    fetchPlans(); // <--- ADD THIS HERE
+    refreshUser();
   }, []);
 
   // Fetch assigned tasks whenever user session is ready
@@ -133,8 +156,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     <UserContext.Provider
       value={{
         emails,
+        refreshUser,
         user,
         plansTasks,
+        loaders,
+        setLoaders,
         
         assignedTasks,
         unseenCount,

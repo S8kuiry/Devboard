@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Lock, Mail, ArrowRight, Terminal, ShieldCheck, Layers, Zap, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useUsers } from '../context/UserContext'
 
 export default function Login() {
   const [loader, setLoader] = useState(false)
@@ -9,6 +10,7 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const navigate = useNavigate()
   const authRoute = import.meta.env.VITE_AUTH_URL
+  const { refreshUser } = useUsers()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -24,7 +26,8 @@ export default function Login() {
     
       if (res.ok) {
         localStorage.setItem('token', resData.token);
-      localStorage.setItem('user', JSON.stringify({ name: resData.name, email: resData.email }));
+        localStorage.setItem('user', JSON.stringify({ name: resData.name, email: resData.email }));
+        refreshUser();
         toast.success(`Welcome back, ${resData.name}!`);
         navigate('/tasks');
       } else {

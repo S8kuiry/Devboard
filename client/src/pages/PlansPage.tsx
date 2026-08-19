@@ -2,84 +2,25 @@ import { useEffect, useState } from 'react'
 import {
   CheckCircle2, Plus, Layers, Search, Clock,
   Trash2, Check, Edit3, ListTodo,
+  FolderSearch,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { Plan } from '../types/plan'
 import PlanModal from '../components/PlanModal'
 import { useUsers } from '../context/UserContext'
 import DeleteModal from '../components/DeleteModal'
-
-// --- Mock Initial Data ---
-// const INITIAL_PLANS: Plan[] = [
-//   {
-//     id: 1,
-//     title: 'Deploy Spring Boot Microservices to AWS',
-//     ownerEmail: 'developer@devboard.io',
-//     createdAt: '2026-08-14T10:00:00',
-//     steps: [
-//       { id: 101, planId: 1, content: 'Containerize api-gateway with Dockerfile', isCompleted: true, position: 1000.0 },
-//       { id: 102, planId: 1, content: 'Setup ECS Cluster and Task Definitions', isCompleted: true, position: 2000.0 },
-//       { id: 103, planId: 1, content: 'Configure Application Load Balancer routes', isCompleted: false, position: 3000.0 },
-//       { id: 104, planId: 1, content: 'Wire Neon PostgreSQL environment variables', isCompleted: false, position: 4000.0 },
-//       { id: 101, planId: 1, content: 'Containerize api-gateway with Dockerfile', isCompleted: true, position: 1000.0 },
-//       { id: 102, planId: 1, content: 'Setup ECS Cluster and Task Definitions', isCompleted: true, position: 2000.0 },
-//       { id: 103, planId: 1, content: 'Configure Application Load Balancer routes', isCompleted: false, position: 3000.0 },
-//       { id: 104, planId: 1, content: 'Wire Neon PostgreSQL environment variables', isCompleted: false, position: 4000.0 },
-//       { id: 101, planId: 1, content: 'Containerize api-gateway with Dockerfile', isCompleted: true, position: 1000.0 },
-//       { id: 102, planId: 1, content: 'Setup ECS Cluster and Task Definitions', isCompleted: true, position: 2000.0 },
-//       { id: 103, planId: 1, content: 'Configure Application Load Balancer routes', isCompleted: false, position: 3000.0 },
-//       { id: 104, planId: 1, content: 'Wire Neon PostgreSQL environment variables', isCompleted: false, position: 4000.0 }
-
-//     ]
-//   },
-//   {
-//     id: 2,
-//     title: 'Auth Service Security Hardening',
-//     ownerEmail: 'developer@devboard.io',
-//     createdAt: '2026-08-15T08:30:00',
-//     steps: [
-//       { id: 201, planId: 2, content: 'Move JWT verification to Spring Gateway filter', isCompleted: true, position: 1000.0 },
-//       { id: 202, planId: 2, content: 'Add Redis rate limiting headers', isCompleted: false, position: 2000.0 },
-//       { id: 203, planId: 2, content: 'Rotate BCrypt salt rounds', isCompleted: false, position: 3000.0 }
-//     ]
-//   },
-//   {
-//     id: 3,
-//     title: 'Deploy Spring Boot Microservices to AWS',
-//     ownerEmail: 'developer@devboard.io',
-//     createdAt: '2026-08-14T10:00:00',
-//     steps: [
-//       { id: 101, planId: 1, content: 'Containerize api-gateway with Dockerfile', isCompleted: true, position: 1000.0 },
-//       { id: 102, planId: 1, content: 'Setup ECS Cluster and Task Definitions', isCompleted: true, position: 2000.0 },
-//       { id: 103, planId: 1, content: 'Configure Application Load Balancer routes', isCompleted: false, position: 3000.0 },
-//       { id: 104, planId: 1, content: 'Wire Neon PostgreSQL environment variables', isCompleted: false, position: 4000.0 }
-//     ]
-//   },
-//   {
-//     id: 4,
-//     title: 'Auth Service Security Hardening',
-//     ownerEmail: 'developer@devboard.io',
-//     createdAt: '2026-08-15T08:30:00',
-//     steps: [
-//       { id: 201, planId: 2, content: 'Move JWT verification to Spring Gateway filter', isCompleted: true, position: 1000.0 },
-//       { id: 202, planId: 2, content: 'Add Redis rate limiting headers', isCompleted: false, position: 2000.0 },
-//       { id: 203, planId: 2, content: 'Rotate BCrypt salt rounds', isCompleted: false, position: 3000.0 }
-//     ]
-//   }
-// ]
+import { usePlanModal } from '../context/PlanModalContext'
 
 export default function PlansPage() {
   const { user, fetchPlans, plansTasks } = useUsers()
+  const { isOpen, openModal, closeModal, clearDraft, initialPlan } = usePlanModal()
+
   const CURRENT_USER_EMAIL = user?.email || 'developer@devboard.io'
   const todoUrl = import.meta.env.VITE_TASK_URL
 
   const [plans, setPlans] = useState<Plan[]>(plansTasks)
   const [searchQuery, setSearchQuery] = useState('')
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
   const [deleteTaskId, setDeleteTaskId] = useState<number | undefined>(undefined)
-
-  // AI Modal
 
   // Metrics
   const totalSteps = plans.reduce((acc, p) => acc + p.steps.length, 0)
@@ -92,43 +33,37 @@ export default function PlansPage() {
   )
 
   const handleOpenCreateModal = () => {
-    setSelectedPlan(null)
-    setIsModalOpen(true)
+    openModal(null)
   }
 
   const handleOpenEditModal = (plan: Plan) => {
-    setSelectedPlan(plan)
-    setIsModalOpen(true)
+    openModal(plan)
   }
 
   const handleDeletePlan = async (id?: number) => {
-  if (!id) return;
+    if (!id) return
 
-  try {
-    const res = await fetch(`${todoUrl}/plans/${id}`, {
-      method: 'DELETE'
-    });
+    try {
+      const res = await fetch(`${todoUrl}/plans/${id}`, {
+        method: 'DELETE'
+      })
 
-    if (res.ok) {
-      // 1. Optimistic UI update (instantly removes card from state)
-      setPlans(prev => prev.filter(p => p.id !== id));
-      
-      // 2. Refetch context state from Spring Boot
-      fetchPlans();
-      
-      toast.success('Plan deleted');
-    } else {
-      const resBody = await res.json().catch(() => ({}));
-      toast.error(resBody.error || "Plan could not be deleted");
+      if (res.ok) {
+        // Optimistic UI update
+        setPlans(prev => prev.filter(p => p.id !== id))
+        fetchPlans()
+        toast.success('Plan deleted')
+      } else {
+        const resBody = await res.json().catch(() => ({}))
+        toast.error(resBody.error || "Plan could not be deleted")
+      }
+    } catch (error) {
+      console.error("Error deleting plan:", error)
+      toast.error("Failed to delete plan")
+    } finally {
+      setDeleteTaskId(undefined)
     }
-  } catch (error) {
-    console.error("Error deleting plan:", error);
-    toast.error("Failed to delete plan");
-  } finally {
-    // 3. Always close the delete modal
-    setDeleteTaskId(undefined);
   }
-};
 
   const handleToggleStep = (planId?: number, stepIndex?: number) => {
     if (!planId || stepIndex === undefined) return
@@ -145,30 +80,25 @@ export default function PlansPage() {
     )
   }
 
-  // 1. Keep local plans in sync with Context plansTasks
+  // Keep local plans in sync with Context plansTasks
   useEffect(() => {
     if (plansTasks) {
-      setPlans(plansTasks);
+      setPlans(plansTasks)
     }
-  }, [plansTasks]);
+  }, [plansTasks])
 
-  // 2. Trigger fetch on mount / user load
+  // Trigger fetch on mount / user load
   useEffect(() => {
     if (user?.email) {
-      fetchPlans();
+      fetchPlans()
     }
-  }, [user?.email]);
-
-  // 3. Update handleSavePlan to refetch latest state from backend
-  const handleSavePlan = (savedPlan: Plan) => {
-    fetchPlans(); // Refetch from Spring Boot to update UserContext state
-    setIsModalOpen(false);
-  };
-  useEffect(() => {
-    fetchPlans();
   }, [user?.email])
 
-
+  // Refetch latest state from backend and clear modal draft
+  const handleSavePlan = (savedPlan: Plan) => {
+    fetchPlans()
+    clearDraft() // Reset context draft & remove from localStorage
+  }
 
   return (
     <div className="pt-6 pl-9 lg:pl-11 pr-4 pb-20 space-y-6 max-w-[98%] w-full mx-auto">
@@ -184,8 +114,6 @@ export default function PlansPage() {
         </div>
 
         <div className="flex items-center gap-2">
-
-
           <button
             onClick={handleOpenCreateModal}
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-indigo-500 transition active:scale-[0.98]"
@@ -237,6 +165,7 @@ export default function PlansPage() {
       </div>
 
       {/* Plans List */}
+      {plans.length !== 0  ?  (
       <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
         {filteredPlans.map(plan => {
           const finished = plan.steps.filter(s => s.isCompleted).length
@@ -264,7 +193,8 @@ export default function PlansPage() {
                       <Edit3 className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => setDeleteTaskId(plan.id)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                      onClick={() => setDeleteTaskId(plan.id)}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -285,7 +215,7 @@ export default function PlansPage() {
                   </div>
                 </div>
 
-                {/* Connected Sequential Step Tree (Scrollable Container) */}
+                {/* Connected Sequential Step Tree */}
                 <div className="relative pt-2 space-y-3 flex-1 overflow-y-auto pr-1.5 custom-scrollbar">
                   {plan.steps.map((step, idx) => {
                     const isLast = idx === plan.steps.length - 1
@@ -295,39 +225,38 @@ export default function PlansPage() {
 
                     return (
                       <div key={step.id || idx} className="relative flex items-center gap-3">
-                        {/* Connected Glowing Line */}
-                        {/* Connected Glowing Line */}
                         {!isLast && (
                           <span
-                            className={`absolute left-[11px] top-[22px] w-[2px] h-[calc(100%+6px)] z-0 transition-all duration-300 ${isLineActive
-                              ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]'
-                              : isCompleted
+                            className={`absolute left-[11px] top-[22px] w-[2px] h-[calc(100%+6px)] z-0 transition-all duration-300 ${
+                              isLineActive
+                                ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]'
+                                : isCompleted
                                 ? 'bg-gradient-to-b from-emerald-500 to-slate-800'
                                 : 'bg-slate-800'
-                              }`}
+                            }`}
                           />
                         )}
 
-                        {/* Round Checkbox Node */}
                         <button
                           type="button"
                           onClick={() => handleToggleStep(plan.id, idx)}
-                          className={`relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-all duration-300 ${isCompleted
-                            ? 'border-emerald-400 bg-emerald-600 text-white shadow-[0_0_10px_rgba(16,185,129,0.6)]'
-                            : 'border-slate-700 bg-slate-950 text-transparent hover:border-slate-500'
-                            }`}
+                          className={`relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-all duration-300 ${
+                            isCompleted
+                              ? 'border-emerald-400 bg-emerald-600 text-white shadow-[0_0_10px_rgba(16,185,129,0.6)]'
+                              : 'border-slate-700 bg-slate-950 text-transparent hover:border-slate-500'
+                          }`}
                         >
                           <Check className="h-3.5 w-3.5 stroke-[3]" />
                         </button>
 
-                        {/* Step Label Box */}
                         <div
                           onClick={() => handleToggleStep(plan.id, idx)}
-                          className="flex-1 rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 hover:border-white/20 hover:bg-slate-950/70 cursor-pointer transition flex items-center justify-between"
+                          className="flex-1 rounded-lg border border-white/10 bg-slate-950/40 px-3 py-2 hover:border-white/20 hover:bg-slate-950/70 cursor-pointer transition flex items-center justify-between"
                         >
                           <span
-                            className={`text-xs ${isCompleted ? 'line-through text-slate-400' : 'text-slate-200 font-medium'
-                              }`}
+                            className={`text-xs ${
+                              isCompleted ? 'line-through text-slate-400' : 'text-slate-200 font-medium'
+                            }`}
                           >
                             {step.content}
                           </span>
@@ -346,23 +275,38 @@ export default function PlansPage() {
             </div>
           )
         })}
-      </div>
+      </div>):(
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-800 bg-slate-900/30 py-16 px-4 text-center">
+          <div className="p-4 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 mb-4 shadow-inner">
+            {searchQuery.trim() ? (
+              <FolderSearch className="h-6 w-6" />
+            ) : (
+              <ListTodo className="h-6 w-6" />
+            )}
+          </div>
 
-      {/* Plan Builder Portal Modal */}
-      {isModalOpen && (
-        <PlanModal
-          initialPlan={selectedPlan}
-          currentUserEmail={CURRENT_USER_EMAIL}
-          onClose={() => setIsModalOpen(false)}
-          onSave={handleSavePlan}
-        />
+          <h3 className="text-base font-semibold text-slate-200 mb-1">
+            {searchQuery.trim() ? 'No matching plans found' : 'No plans created yet'}
+          </h3>
+
+          <p className="text-xs text-slate-400 max-w-sm leading-relaxed mb-6">
+            {searchQuery.trim()
+              ? `We couldn't find any plan or step content matching "${searchQuery}". Try refining your search.`
+              : 'Start organizing your roadmap by creating structured execution plans with auto-sequenced steps.'}
+          </p>
+
+          
+        </div>
+
+
       )}
 
-      {isModalOpen && selectedPlan && (
+      {/* Plan Builder Modal */}
+      {isOpen && (
         <PlanModal
-          initialPlan={selectedPlan}
-          currentUserEmail={selectedPlan.ownerEmail}
-          onClose={() => setIsModalOpen(false)}
+          initialPlan={initialPlan}
+          currentUserEmail={initialPlan?.ownerEmail || CURRENT_USER_EMAIL}
+          onClose={closeModal}
           onSave={handleSavePlan}
         />
       )}
@@ -376,7 +320,6 @@ export default function PlansPage() {
           itemName={plans.find(t => t.id === deleteTaskId)?.title}
         />
       )}
-
     </div>
   )
 }

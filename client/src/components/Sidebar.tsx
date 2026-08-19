@@ -21,7 +21,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
-  const { unseenCount } = useUsers(); // 👈 Pull unseenCount straight from context!
+  const { unseenCount, refreshUser } = useUsers();
   const navigate = useNavigate()
   const [user, setUser] = useState<User | null>(null)
 
@@ -39,6 +39,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const handleLogout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+    refreshUser()
     navigate('/login')
   }
 
