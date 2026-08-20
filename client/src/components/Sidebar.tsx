@@ -97,13 +97,13 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           {/* Primary View: Dashboard */}
           <NavLink to="/dashboard" className={linkStyle} title="Dashboard">
             <LayoutDashboard className="h-4 w-4 shrink-0 text-indigo-400" />
-            {!collapsed && <span>Dashboard</span>}
+            {!collapsed && <span>Task Board</span>}
           </NavLink>
 
           <NavLink to="/assigned" className={linkStyle} title="Task Assigned">
             <div className="flex items-center gap-3 min-w-0">
               <UserCheck className="h-4 w-4 shrink-0 text-indigo-400" />
-              {!collapsed && <span className="truncate">Task Assigned</span>}
+              {!collapsed && <span className="truncate">Tasks Assigned</span>}
             </div>
 
             {/* Floating Badge */}

@@ -1,4 +1,5 @@
 import json
+import os
 from fastapi import APIRouter, HTTPException
 from .models import ConvertRequest
 from .groq_client import get_groq_client
@@ -31,7 +32,7 @@ async def convert_steps(req: ConvertRequest):
         """
 
         response = client.chat.completions.create(
-            model="openai/gpt-oss-20b",
+            model=os.getenv("CONVERT_MODEL")  or  "openai/gpt-oss-20b",
             response_format={"type": "json_object"},
             messages=[
                 {

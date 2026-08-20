@@ -235,7 +235,7 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-white">Task Management Board</h1>
+          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-white">Task  Board</h1>
           <p className="text-xs text-slate-400 mt-1">Organize microservice tasks and track team assignments</p>
         </div>
 

@@ -9,16 +9,20 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.devboard.taskservice.client.AuthClient;
+import com.devboard.taskservice.websocket.TaskWebSocketHandler;
 
 @Service
 
 public class EmailService {
     private final AuthClient authClient;
     private final JavaMailSender mailSender;
+    private final TaskWebSocketHandler webSocketHandler;
 
-    public EmailService(AuthClient authClient, JavaMailSender mailSender) {
+
+    public EmailService(AuthClient authClient, JavaMailSender mailSender , TaskWebSocketHandler webSocketHandler) {
         this.authClient = authClient;
         this.mailSender = mailSender;
+        this.webSocketHandler = webSocketHandler;
     }
 
     private void processTaskAssignments(List<String> targetEmails, String taskTitle) {
@@ -40,6 +44,12 @@ public class EmailService {
                 message.setText("You have been assigned the task '" + taskTitle + "'. Please register using this email to access and track it.");
             }
 
+            // Push real-time notification to the assigned user
+        // FIX: Use 'email' from the loop instead of 'task.getAssignedEmail()'
+            webSocketHandler.notifyUser(
+                email, 
+                "{\"type\":\"TASK_ASSIGNED\"}"
+            );
             mailSender.send(message);
         }
 

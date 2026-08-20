@@ -132,4 +132,18 @@ public class PlanController {
         }
     }
 
+
+    @GetMapping("/ping")
+    public ResponseEntity<?> greetings() {
+        try {
+            return ResponseEntity.ok("greetings");
+
+            
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+
 }

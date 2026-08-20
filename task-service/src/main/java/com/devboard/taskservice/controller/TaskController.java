@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.devboard.taskservice.entity.Task;
 import com.devboard.taskservice.repository.TaskRepository;
 import com.devboard.taskservice.service.EmailService;
+import com.devboard.taskservice.websocket.TaskWebSocketHandler;
 
 import jakarta.transaction.Transactional;
 
@@ -29,10 +30,12 @@ public class TaskController {
 
     private final TaskRepository taskRepository;
     private final EmailService emailService;
+    private final TaskWebSocketHandler webSocketHandler;
 
-    public TaskController(TaskRepository taskRepository, EmailService emailService) {
+    public TaskController(TaskRepository taskRepository, EmailService emailService , TaskWebSocketHandler webSocketHandler) {
         this.taskRepository = taskRepository;
         this.emailService = emailService;
+        this.webSocketHandler = webSocketHandler;
     }
 
     @Transactional
@@ -145,4 +148,19 @@ public class TaskController {
                     .body(Map.of("error", e.getMessage()));
         }
     }
+
+
+    @GetMapping("/ping")
+    public ResponseEntity<?> greetings() {
+        try {
+            return ResponseEntity.ok("greetings");
+
+            
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+
 }

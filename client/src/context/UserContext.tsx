@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { Task } from "../types/task"; // Adjust path to your Task type
 import type { Plan } from "../types/plan";
 
@@ -8,9 +8,9 @@ interface User {
 }
 
 interface UserContextType {
-  
+
   emails: string[];
-  plansTasks:Plan[];
+  plansTasks: Plan[];
   refreshEmails: () => Promise<void>;
   refreshUser: () => void;
   user: User | null;
@@ -18,8 +18,8 @@ interface UserContextType {
   unseenCount: number;
   fetchAssignedTasks: () => Promise<void>;
   markAssignedAsSeen: () => void;
-  fetchPlans : ()=> void;
-  loaders:boolean;
+  fetchPlans: () => void;
+  loaders: boolean;
   setLoaders: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
@@ -29,9 +29,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [emails, setEmails] = useState<string[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [assignedTasks, setAssignedTasks] = useState<Task[]>([]);
-  const [plansTasks,setPlans] = useState<Plan[]>([]) 
+  const [plansTasks, setPlans] = useState<Plan[]>([])
   const [unseenCount, setUnseenCount] = useState<number>(0);
-const [loaders, setLoaders] = useState<boolean>(false);
+  const [loaders, setLoaders] = useState<boolean>(false);
+  const socketRef = useRef<WebSocket | null>(null)
 
   const authUrl = import.meta.env.VITE_AUTH_URL;
   const taskUrl = import.meta.env.VITE_TASK_URL;
@@ -111,20 +112,20 @@ const [loaders, setLoaders] = useState<boolean>(false);
   };
 
   const fetchPlans = async () => {
-  if (!user?.email) return;
-  try {
-    const res = await fetch(
-      `${taskUrl}/plans?ownerEmail=${encodeURIComponent(user.email)}`
-    );
-    const resBody = await res.json();
-    if (!res.ok) throw new Error(resBody.error || "Failed to fetch plans");
-    
-    // Spring returns List<Plan> directly, so set resBody directly
-    setPlans(resBody);
-  } catch (error) {
-    console.error("Error fetching plans:", error);
-  }
-};
+    if (!user?.email) return;
+    try {
+      const res = await fetch(
+        `${taskUrl}/plans?ownerEmail=${encodeURIComponent(user.email)}`
+      );
+      const resBody = await res.json();
+      if (!res.ok) throw new Error(resBody.error || "Failed to fetch plans");
+
+      // Spring returns List<Plan> directly, so set resBody directly
+      setPlans(resBody);
+    } catch (error) {
+      console.error("Error fetching plans:", error);
+    }
+  };
 
 
 
@@ -152,6 +153,76 @@ const [loaders, setLoaders] = useState<boolean>(false);
     }
   }, [user?.email]);
 
+
+
+  // websocket connection
+  useEffect(() => {
+  if (!user?.email) return;
+
+  let isMounted = true;
+  let timerId: ReturnType<typeof setTimeout>;
+
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const cleanHost = taskUrl.replace(/^https?:\/\//, "");
+  const wsUrl = `${protocol}//${cleanHost}/ws?email=${encodeURIComponent(user.email)}`;
+
+  const pingAndConnect = async () => {
+    try {
+      const res = await fetch(`${taskUrl}/tasks/ping`);
+      
+      if (res.ok && isMounted) {
+        const ws = new WebSocket(wsUrl);
+        socketRef.current = ws;
+
+        // Keep-alive timer reference
+        let pingInterval: ReturnType<typeof setInterval>;
+
+        ws.onopen = () => {
+          // Send PING every 25s to stop Render's 55s idle timeout
+          pingInterval = setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: "PING" }));
+            }
+          }, 25000);
+        };
+
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          if (data.type === "TASK_ASSIGNED") {
+            fetchAssignedTasks();
+          }
+        };
+
+        ws.onclose = () => {
+          clearInterval(pingInterval); // Clear heartbeat on disconnect
+          if (isMounted) {
+            timerId = setTimeout(pingAndConnect, 3000);
+          }
+        };
+
+        return; 
+      }
+    } catch (e) {
+      console.log("Server waking up, retrying ping in 3s...");
+    }
+
+    if (isMounted) {
+      timerId = setTimeout(pingAndConnect, 3000);
+    }
+  };
+
+  pingAndConnect();
+
+  return () => {
+    isMounted = false;
+    clearTimeout(timerId);
+    if (socketRef.current) {
+      socketRef.current.onclose = null; 
+      socketRef.current.close();
+    }
+  };
+}, [user?.email]);
+
   return (
     <UserContext.Provider
       value={{
@@ -161,15 +232,15 @@ const [loaders, setLoaders] = useState<boolean>(false);
         plansTasks,
         loaders,
         setLoaders,
-        
+
         assignedTasks,
         unseenCount,
         refreshEmails: fetchEmails,
         fetchAssignedTasks,
         markAssignedAsSeen,
         fetchPlans
-       
-        
+
+
       }}
     >
       {children}

@@ -1,6 +1,6 @@
 # Route logic: "ask AI to modify my plan"
 
-
+import os
 from fastapi import APIRouter, HTTPException
 from .models import RefineRequest
 from .groq_client import get_groq_client
@@ -59,7 +59,7 @@ Conversation so far:
 Continue the conversation naturally. Respond only to the latest User message — do not repeat earlier turns."""
 
         response = client.chat.completions.create(
-            model="openai/gpt-oss-20b",
+            model=os.getenv("REFINE_MODEL")  or  "openai/gpt-oss-20b",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
