@@ -16,7 +16,6 @@ interface StepsModalProps {
     onSubmit: (e: React.FormEvent<HTMLFormElement>) => void
     isSaving: boolean
     isEditing: boolean
-    ownerEmail: string
     initialPlan?: Plan | null
     onClose: () => void
 }
@@ -36,7 +35,6 @@ export default function StepsModal({
     onSubmit,
     isSaving,
     isEditing,
-    ownerEmail,
     initialPlan,
     onClose
 }: StepsModalProps) {
@@ -59,9 +57,6 @@ export default function StepsModal({
             <p className="text-[10px] text-slate-400 mt-0.5">
                 {initialPlan ? 'Modify your step sequence and details' : 'Draft a new execution roadmap'}
             </p>
-            {/* <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-900 border border-slate-800 text-slate-400">
-                    {ownerEmail}
-                </span> */}
         </div>
     </div>
 

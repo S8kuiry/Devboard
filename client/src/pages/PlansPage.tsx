@@ -95,7 +95,7 @@ export default function PlansPage() {
   }, [user?.email])
 
   // Refetch latest state from backend and clear modal draft
-  const handleSavePlan = (savedPlan: Plan) => {
+  const handleSavePlan = () => {
     fetchPlans()
     clearDraft() // Reset context draft & remove from localStorage
   }

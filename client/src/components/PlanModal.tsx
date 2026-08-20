@@ -232,7 +232,7 @@ export default function PlanModal({ onClose, onSave, currentUserEmail, initialPl
                     <StepsModal
                         onClose={onClose}
                         initialPlan={initialPlan}
-                        ownerEmail={currentUserEmail}
+                        // ownerEmail={currentUserEmail}
                         title={title}
                         setTitle={setTitle}
                         steps={steps}

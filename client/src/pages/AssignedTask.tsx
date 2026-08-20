@@ -14,9 +14,7 @@ import toast from 'react-hot-toast'
 export type SortOption = 'priority' | 'status' | 'assigned' | 'dueDate'
 
 // --- Initial Mock Data ---
-const INITIAL_TASKS: Task[] = [
 
-]
 
 export default function AssignedTask() {
   const { markAssignedAsSeen, fetchAssignedTasks, user,assignedTasks } = useUsers();
