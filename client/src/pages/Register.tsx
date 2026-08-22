@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Lock, Mail, ArrowRight, UserPlus, ShieldCheck, Layers, Zap, Terminal, Loader2, User } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useUsers } from '../context/UserContext'
 
 
 export default function Register() {
   const [loader, setLoader] = useState(false)
-  const [isWarmingUp, setIsWarmingUp] = useState(true)
+  const {isWarmingUp,ping_render} = useUsers()
 
 
   const [email, setEmail] = useState('')
@@ -15,7 +16,6 @@ export default function Register() {
   const navigate = useNavigate()
   const authRoute = import.meta.env.VITE_AUTH_URL;
  
-  const ping_url_gateway = import.meta.env.VITE_TASK_URL
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -49,26 +49,7 @@ export default function Register() {
 
 
 
-  const ping_render = async () => {
-  setIsWarmingUp(true);
-
-  let isReady = false;
-  while (!isReady) {
-    try {
-      const res = await fetch(`${ping_url_gateway}/tasks/ping`);
-      if (res.ok) {
-        isReady = true;
-      } else {
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-      }
-    } catch {
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-    }
-  }
-
-  setIsWarmingUp(false);
-};
-
+  
 useEffect(() => {
   ping_render();
 }, []);

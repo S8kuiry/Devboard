@@ -10,6 +10,7 @@ interface User {
 interface UserContextType {
 
   emails: string[];
+  isWarmingUp: boolean
   plansTasks: Plan[];
   refreshEmails: () => Promise<void>;
   refreshUser: () => void;
@@ -19,8 +20,10 @@ interface UserContextType {
   fetchAssignedTasks: () => Promise<void>;
   markAssignedAsSeen: () => void;
   fetchPlans: () => void;
+  ping_render : ()=> void
   loaders: boolean;
   setLoaders: React.Dispatch<React.SetStateAction<boolean>>;
+
 }
 const notificationSound = typeof window !== "undefined" ? new Audio("/notification.mp3") : null;
 
@@ -36,27 +39,31 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [loaders, setLoaders] = useState<boolean>(false);
   const socketRef = useRef<WebSocket | null>(null)
   const lastSoundTimeRef = useRef<number>(0);
+  const [isWarmingUp, setIsWarmingUp] = useState(true)
+
 
   const authUrl = import.meta.env.VITE_AUTH_URL;
   const taskUrl = import.meta.env.VITE_TASK_URL;
+  const ping_url_gateway = import.meta.env.VITE_TASK_URL
+
 
   // notification  section 
   const playNotificationSound = () => {
-  if (!notificationSound) return;
+    if (!notificationSound) return;
 
-  const now = Date.now();
-  const COOLDOWN_MS = 2000; // Prevents sound spam within 2 seconds
+    const now = Date.now();
+    const COOLDOWN_MS = 2000; // Prevents sound spam within 2 seconds
 
-  if (now - lastSoundTimeRef.current > COOLDOWN_MS) {
-    lastSoundTimeRef.current = now;
-    notificationSound.currentTime = 0;
-    
-    notificationSound.play().catch((err) => {
-      // Quietly catches autoplay blocks if the user hasn't clicked the page yet
-      console.warn("Notification audio waiting for user interaction.",err);
-    });
-  }
-};
+    if (now - lastSoundTimeRef.current > COOLDOWN_MS) {
+      lastSoundTimeRef.current = now;
+      notificationSound.currentTime = 0;
+
+      notificationSound.play().catch((err) => {
+        // Quietly catches autoplay blocks if the user hasn't clicked the page yet
+        console.warn("Notification audio waiting for user interaction.", err);
+      });
+    }
+  };
 
 
 
@@ -194,7 +201,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${cleanHost}/ws?email=${encodeURIComponent(user.email)}`;
 
-    
+
 
 
 
@@ -270,6 +277,28 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   }, [user?.email]);
 
 
+
+  const ping_render = async () => {
+  setIsWarmingUp(true);
+
+  let isReady = false;
+  while (!isReady) {
+    try {
+      const res = await fetch(`${ping_url_gateway}/tasks/ping`);
+      if (res.ok) {
+        isReady = true;
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+    }
+  }
+
+  setIsWarmingUp(false);
+};
+
+
   return (
     <UserContext.Provider
       value={{
@@ -279,13 +308,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         plansTasks,
         loaders,
         setLoaders,
-
+        isWarmingUp,
         assignedTasks,
         unseenCount,
         refreshEmails: fetchEmails,
         fetchAssignedTasks,
         markAssignedAsSeen,
-        fetchPlans
+        fetchPlans,
+        ping_render
 
 
       }}

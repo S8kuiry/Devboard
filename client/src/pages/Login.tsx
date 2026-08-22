@@ -6,14 +6,13 @@ import { useUsers } from '../context/UserContext'
 
 export default function Login() {
   const [loader, setLoader] = useState(false)
-  const [isWarmingUp, setIsWarmingUp] = useState(true)
+  const {isWarmingUp,ping_render} = useUsers()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const navigate = useNavigate()
   const authRoute = import.meta.env.VITE_AUTH_URL
   const { refreshUser } = useUsers()
   
-  const ping_url_gateway = import.meta.env.VITE_TASK_URL
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -48,25 +47,7 @@ export default function Login() {
   }
 
 
-  const ping_render = async () => {
-  setIsWarmingUp(true);
-
-  let isReady = false;
-  while (!isReady) {
-    try {
-      const res = await fetch(`${ping_url_gateway}/tasks/ping`);
-      if (res.ok) {
-        isReady = true;
-      } else {
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-      }
-    } catch {
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-    }
-  }
-
-  setIsWarmingUp(false);
-};
+  
 
 useEffect(() => {
   ping_render();

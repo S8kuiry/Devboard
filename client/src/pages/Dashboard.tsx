@@ -20,7 +20,7 @@ const INITIAL_TASKS: Task[] = [
 ]
 
 export default function Dashboard() {
-  const {user,fetchAssignedTasks} = useUsers()
+  const {user,fetchAssignedTasks,isWarmingUp,ping_render} = useUsers()
   const taskUrl = import.meta.env.VITE_TASK_URL
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban')
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS)
@@ -199,7 +199,12 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchTasks()
+
   }, [user?.email])
+
+  useEffect(()=>{
+    ping_render()
+  },[])
 
   const handleDelete = async(id:number)=>{
     try {
