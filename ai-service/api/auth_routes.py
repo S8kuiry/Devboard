@@ -94,12 +94,10 @@ def get_user_emails(session: Session = Depends(get_session)):
 def check_user_exists(email: str = Query(...), session: Session = Depends(get_session)):
     try:
         user = session.exec(select(User).where(User.email == email)).first()
-        
-        # Returns boolean true or false
         return user is not None
     except Exception as e:
         return JSONResponse(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"error": str(e)}
         )
 

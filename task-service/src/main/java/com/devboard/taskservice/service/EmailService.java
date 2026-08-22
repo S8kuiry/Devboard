@@ -18,6 +18,8 @@ import com.devboard.taskservice.client.AuthClient;
 public class EmailService {
     private final AuthClient authClient;
     private final JavaMailSender mailSender;
+    @Value("${spring.mail.username}")
+    private String fromEmail;
 
     @Value("${app.frontend.url}")
     private String frontendUrl;
@@ -31,13 +33,18 @@ public class EmailService {
         if (targetEmails == null || targetEmails.isEmpty()) {
             return;
         }
-
         for (String email : targetEmails) {
-            Boolean exists = authClient.checkUserExists(email);
-
+            Boolean exists = false;
+            try {
+                exists = authClient.checkUserExists(email);
+            } catch (Exception e) {
+                // Log warning and fallback gracefully so email dispatch is not blocked
+                System.err.println("Failed to verify user existence via AuthClient: " + e.getMessage());
+                exists = false;
+            }
             SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
             message.setTo(email);
-
             if (Boolean.TRUE.equals(exists)) {
                 message.setSubject("📌 New Task Assigned: " + taskTitle);
                 message.setText(String.format(
@@ -61,20 +68,11 @@ public class EmailService {
                         taskTitle,
                         frontendUrl));
             }
-
             mailSender.send(message);
         }
-
     }
 
-    // Method 1: For POST (Sends emails to all assigned users)
-    //
-    // @Async because the callers are @Transactional: an SMTP round trip per
-    // assignee
-    // plus a Feign call to auth-service kept the JDBC connection checked out for
-    // seconds, starving the pool for every other in-flight request. Both arguments
-    // are
-    // plain detached lists, so they are safe to read off the request thread.
+   
     @Async
     public void sendTaskAssignments(List<String> assignedEmails, String taskTitle) {
 
