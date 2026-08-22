@@ -13,7 +13,7 @@ export default function Login() {
   const authRoute = import.meta.env.VITE_AUTH_URL
   const { refreshUser } = useUsers()
   
-  const ping_url_gateway = import.meta.env.VITE_AUTH_URL
+  const ping_url_gateway = import.meta.env.VITE_TASK_URL
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,7 +54,7 @@ export default function Login() {
   let isReady = false;
   while (!isReady) {
     try {
-      const res = await fetch(`${ping_url_gateway}/gateway/ping`);
+      const res = await fetch(`${ping_url_gateway}/tasks/ping`);
       if (res.ok) {
         isReady = true;
       } else {

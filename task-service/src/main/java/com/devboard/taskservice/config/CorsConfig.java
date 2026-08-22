@@ -1,4 +1,4 @@
-package com.devboard.apigateway.config;
+package com.devboard.taskservice.config;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;

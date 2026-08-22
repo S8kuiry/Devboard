@@ -199,7 +199,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchTasks()
-  }, [CURRENT_USER_EMAIL])
+  }, [user?.email])
 
   const handleDelete = async(id:number)=>{
     try {

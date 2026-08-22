@@ -42,20 +42,21 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   // notification  section 
   const playNotificationSound = () => {
-    if (!notificationSound) return;
+  if (!notificationSound) return;
 
-    const now = Date.now();
-    const COOLDOWN_MS = 2000; // 2 seconds cooldown
+  const now = Date.now();
+  const COOLDOWN_MS = 2000; // Prevents sound spam within 2 seconds
 
-    if (now - lastSoundTimeRef.current > COOLDOWN_MS) {
-      lastSoundTimeRef.current = now;
-      notificationSound.currentTime = 0;
-      notificationSound.play().catch((err) => {
-        // Suppress browser autoplay restriction errors
-        console.warn("Audio blocked by browser policy until user interacts:", err.message);
-      });
-    }
-  };
+  if (now - lastSoundTimeRef.current > COOLDOWN_MS) {
+    lastSoundTimeRef.current = now;
+    notificationSound.currentTime = 0;
+    
+    notificationSound.play().catch((err) => {
+      // Quietly catches autoplay blocks if the user hasn't clicked the page yet
+      console.warn("Notification audio waiting for user interaction.",err);
+    });
+  }
+};
 
 
 
@@ -193,6 +194,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${cleanHost}/ws?email=${encodeURIComponent(user.email)}`;
 
+    
+
+
+
     const pingAndConnect = async () => {
       try {
         // Ping HTTP REST endpoint through Gateway/Task URL
@@ -214,27 +219,26 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           };
 
           ws.onmessage = (event) => {
-            // 2. Safe JSON parsing guard
             try {
               const data = JSON.parse(event.data);
               if (data.type === "TASK_ASSIGNED") {
-                playNotificationSound(); // <--- Triggers sound safely
-
-
+                playNotificationSound();
               }
               if (
                 data.type === "TASK_ASSIGNED" ||
                 data.type === "TASK_DELETED" ||
                 data.type === "TASK_UPDATED"
               ) {
-                fetchAssignedTasks();
+                // 300ms delay gives Spring Boot @Transactional time to commit to Neon DB
+                setTimeout(() => {
+                  fetchAssignedTasks();
+                  fetchPlans();
+                }, 300);
               }
-
             } catch (err) {
               console.error("Error parsing WebSocket payload:", err);
             }
           };
-
           ws.onclose = () => {
             clearInterval(pingInterval);
             if (isMounted) {

@@ -6,6 +6,7 @@ import type { Task, TaskDraft, TaskPriority, TaskStatus } from '../types/task';
 import toast from 'react-hot-toast';
 import { useUsers } from '../context/UserContext';
 import { AddToCalendarButton } from './AddToCalendarButton';
+import { useLocation } from 'react-router-dom';
 
 interface TaskModalProps {
   onClose: () => void;
@@ -18,6 +19,8 @@ interface TaskModalProps {
 export default function TaskModal({ onClose, onSubmit, currentUserEmail, initialTask }: TaskModalProps) {
   const taskUrl = import.meta.env.VITE_TASK_URL;
   const { emails, refreshEmails } = useUsers();
+  const location = useLocation();
+  const isAssignedRoute = location.pathname === '/assigned';
 
   const [formData, setFormData] = useState<TaskDraft>(initialTask || {
     title: '',
@@ -270,13 +273,13 @@ export default function TaskModal({ onClose, onSubmit, currentUserEmail, initial
                 )}
               </div>
 
-              <button
+             {!isAssignedRoute && <button
                 type="button"
                 onClick={() => addAssignee()}
                 className="px-3.5 py-2.5 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-indigo-300 text-xs font-medium transition-all flex items-center justify-center shrink-0"
               >
                 <Plus className="h-4 w-4" />
-              </button>
+              </button>}
             </div>
 
             {/* Assignee Badges */}
@@ -293,7 +296,7 @@ export default function TaskModal({ onClose, onSubmit, currentUserEmail, initial
                       onClick={() => removeAssignee(email)}
                       className="text-indigo-400 hover:text-rose-400 transition-colors"
                     >
-                      <Trash2 className="h-3 w-3" />
+                     {!isAssignedRoute && <Trash2 className="h-3 w-3" />}
                     </button>
                   </span>
                 ))}

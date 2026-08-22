@@ -258,7 +258,7 @@ export default function AssignedTask() {
 
       {/* Main Task Display */}
       {viewMode === 'kanban' ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 transition-all duration-300">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 transition-all duration-300 border-none  ">
           {columns.map((column) => {
             const columnTasks = sortedTasks.filter(t => t.status === column.status)
 

@@ -48,13 +48,19 @@ public class TaskController {
             List<String> assignedEmails = request.getAssignedEmails();
             Task saved = taskRepository.save(request);
 
+            // 1. Collect all stakeholders (Owner + Assignees)
+            Set<String> usersToNotify = new HashSet<>();
             if (assignedEmails != null && !assignedEmails.isEmpty()) {
+                usersToNotify.addAll(assignedEmails);
                 emailService.sendTaskAssignments(assignedEmails, request.getTitle());
+            }
+            if (request.getOwnerEmail() != null) {
+                usersToNotify.add(request.getOwnerEmail());
+            }
 
-                // WebSocket UI sync: Notify assigned users
-                for (String email : assignedEmails) {
-                    webSocketHandler.notifyUser(email, "{\"type\":\"TASK_ASSIGNED\"}");
-                }
+            // 2. Send WS notification to everyone
+            for (String email : usersToNotify) {
+                webSocketHandler.notifyUser(email, "{\"type\":\"TASK_ASSIGNED\"}");
             }
 
             return ResponseEntity.ok(saved);
@@ -109,6 +115,9 @@ public class TaskController {
 
             Task existingTask = isExisting.get();
 
+            // 1. Capture old status before mutating entity
+            Task.Status oldStatus = existingTask.getStatus();
+
             // FIXED: Copy lazy list into a plain Java ArrayList to avoid
             // LazyInitializationException
             List<String> oldAssignedEmails = existingTask.getAssignedEmails() != null
@@ -127,6 +136,22 @@ public class TaskController {
 
             emailService.sendTaskAssignmentsOnUpdate(oldAssignedEmails, request.getAssignedEmails(),
                     request.getTitle());
+
+            emailService.sendTaskRemovalNotificationsOnUpdate(
+                    oldAssignedEmails,
+                    request.getAssignedEmails(),
+                    request.getTitle());
+
+            // 3. Detect completion transition and dispatch email to Owner + All Assignees
+            boolean isNewlyCompleted = (oldStatus != Task.Status.DONE)
+                    && (savedTask.getStatus() == Task.Status.DONE);
+
+            if (isNewlyCompleted) {
+                emailService.sendTaskCompletionNotifications(
+                        savedTask.getOwnerEmail(),
+                        savedTask.getAssignedEmails(),
+                        savedTask.getTitle());
+            }
 
             // WebSocket UI Sync: Collect ALL stakeholders (Owner + Old Assignees + New
             // Assignees)
@@ -151,6 +176,7 @@ public class TaskController {
         }
     }
 
+    @Transactional
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteTask(@PathVariable Long id) {
         try {

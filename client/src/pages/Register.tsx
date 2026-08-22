@@ -15,7 +15,7 @@ export default function Register() {
   const navigate = useNavigate()
   const authRoute = import.meta.env.VITE_AUTH_URL;
  
-  const ping_url_gateway = import.meta.env.VITE_AUTH_URL
+  const ping_url_gateway = import.meta.env.VITE_TASK_URL
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -55,7 +55,7 @@ export default function Register() {
   let isReady = false;
   while (!isReady) {
     try {
-      const res = await fetch(`${ping_url_gateway}/gateway/ping`);
+      const res = await fetch(`${ping_url_gateway}/tasks/ping`);
       if (res.ok) {
         isReady = true;
       } else {

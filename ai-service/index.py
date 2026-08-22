@@ -6,6 +6,7 @@ import uvicorn
 
 from api.convert_steps import router as convert_router
 from api.refine_plan import router as refine_router
+from api.auth_routes import router as auth_router
 
 app = FastAPI(title="AI Service for Devboard")
 # Full Permissive CORS Policy
@@ -20,6 +21,7 @@ app.add_middleware(
 
 app.include_router(convert_router)
 app.include_router(refine_router)
+app.include_router(auth_router)
 
 
 

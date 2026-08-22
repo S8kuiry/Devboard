@@ -3,3 +3,11 @@ uvicorn>=0.28.0
 groq>=0.5.0
 pydantic>=2.6.0
 python-dotenv>=1.0.1
+sqlmodel
+psycopg2-binary
+passlib[bcrypt]
+# Passlib currently requires bcrypt 4.x; bcrypt 5.x rejects an internal
+# compatibility-check value before Passlib can initialize its backend.
+bcrypt<5.0.0
+pyjwt
+pydantic[email]

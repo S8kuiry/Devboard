@@ -1,28 +1,27 @@
 
 services:
-  auth-service:
-    build: ./auth-service
-    container_name: auth-service
-    ports:
-      - "8080:8080"
-    restart: unless-stopped
-    develop:
-      watch:
-        - action: rebuild
-          path: ./auth-service
-          ignore:
-            - target/
-            - .git/
+  # auth-service:
+  #   build: ./auth-service
+  #   container_name: auth-service
+  #   ports:
+  #     - "8080:8080"
+  #   restart: unless-stopped
+  #   develop:
+  #     watch:
+  #       - action: rebuild
+  #         path: ./auth-service
+  #         ignore:
+  #           - target/
+  #           - .git/
 
   task-service:
     build: ./task-service
     container_name: task-service
     ports:
       - "8081:8081"
-    environment:
-      - AUTH_SERVICE_URL=http://auth-service:8080
-    depends_on:
-      - auth-service
+    # environment:
+    #   - AUTH_SERVICE_URL=http://auth-service:8080
+    
     restart: unless-stopped
     develop:
       watch:
@@ -32,25 +31,25 @@ services:
             - target/
             - .git/
 
-  api-gateway:
-    build: ./api-gateway
-    container_name: api-gateway
-    ports:
-      - "8060:8060"
-    environment:
-      - AUTH_SERVICE_URL=http://auth-service:8080
-      - TASK_SERVICE_URL=http://task-service:8081
-    depends_on:
-      - auth-service
-      - task-service
-    restart: unless-stopped
-    develop:
-      watch:
-        - action: rebuild
-          path: ./api-gateway
-          ignore:
-            - target/
-            - .git/
+  # api-gateway:
+  #   build: ./api-gateway
+  #   container_name: api-gateway
+  #   ports:
+  #     - "8060:8060"
+  #   environment:
+  #     - AUTH_SERVICE_URL=http://auth-service:8080
+  #     - TASK_SERVICE_URL=http://task-service:8081
+  #   depends_on:
+  #     - auth-service
+  #     - task-service
+  #   restart: unless-stopped
+  #   develop:
+  #     watch:
+  #       - action: rebuild
+  #         path: ./api-gateway
+  #         ignore:
+  #           - target/
+  #           - .git/
 
   client:
     build: ./client
@@ -58,8 +57,8 @@ services:
     
     ports:
       - "5173:80"
-    depends_on:
-      - api-gateway
+    # depends_on:
+    #   - api-gateway
     restart: unless-stopped
     develop:
       watch:
