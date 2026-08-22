@@ -1,9 +1,11 @@
 package com.devboard.taskservice.controller;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -32,7 +34,8 @@ public class TaskController {
     private final EmailService emailService;
     private final TaskWebSocketHandler webSocketHandler;
 
-    public TaskController(TaskRepository taskRepository, EmailService emailService , TaskWebSocketHandler webSocketHandler) {
+    public TaskController(TaskRepository taskRepository, EmailService emailService,
+            TaskWebSocketHandler webSocketHandler) {
         this.taskRepository = taskRepository;
         this.emailService = emailService;
         this.webSocketHandler = webSocketHandler;
@@ -47,6 +50,11 @@ public class TaskController {
 
             if (assignedEmails != null && !assignedEmails.isEmpty()) {
                 emailService.sendTaskAssignments(assignedEmails, request.getTitle());
+
+                // WebSocket UI sync: Notify assigned users
+                for (String email : assignedEmails) {
+                    webSocketHandler.notifyUser(email, "{\"type\":\"TASK_ASSIGNED\"}");
+                }
             }
 
             return ResponseEntity.ok(saved);
@@ -67,8 +75,7 @@ public class TaskController {
         }
     }
 
-
-     @GetMapping(params = "assignedEmail")
+    @GetMapping(params = "assignedEmail")
     public ResponseEntity<?> getAssignedTasks(@RequestParam String assignedEmail) {
         try {
             List<Task> assignedTasks = taskRepository.findByAssignedEmailsContaining(assignedEmail);
@@ -80,8 +87,6 @@ public class TaskController {
         }
     }
 
-    
-
     @GetMapping("/{id}")
     public ResponseEntity<?> getTasksById(@PathVariable Long id) {
         Optional<Task> task = taskRepository.findById(id);
@@ -91,8 +96,6 @@ public class TaskController {
         }
         return ResponseEntity.ok(task.get());
     }
-
-   
 
     @Transactional
     @PutMapping("/{id}")
@@ -125,6 +128,21 @@ public class TaskController {
             emailService.sendTaskAssignmentsOnUpdate(oldAssignedEmails, request.getAssignedEmails(),
                     request.getTitle());
 
+            // WebSocket UI Sync: Collect ALL stakeholders (Owner + Old Assignees + New
+            // Assignees)
+            Set<String> usersToNotify = new HashSet<>(oldAssignedEmails);
+            if (savedTask.getAssignedEmails() != null) {
+                usersToNotify.addAll(savedTask.getAssignedEmails());
+            }
+            if (savedTask.getOwnerEmail() != null) {
+                usersToNotify.add(savedTask.getOwnerEmail());
+            }
+
+            // Broadcast status/task changes to everyone's UI
+            for (String email : usersToNotify) {
+                webSocketHandler.notifyUser(email, "{\"type\":\"TASK_UPDATED\"}");
+            }
+
             return ResponseEntity.ok(savedTask);
 
         } catch (Exception e) {
@@ -141,7 +159,25 @@ public class TaskController {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("error", "Task not found with id: " + id));
             }
+
+            // 1. Capture stakeholders BEFORE deleting entity
+            Task taskToDelete = isExist.get();
+            Set<String> usersToNotify = new HashSet<>();
+            if (taskToDelete.getAssignedEmails() != null) {
+                usersToNotify.addAll(taskToDelete.getAssignedEmails());
+            }
+            if (taskToDelete.getOwnerEmail() != null) {
+                usersToNotify.add(taskToDelete.getOwnerEmail());
+            }
+
             taskRepository.deleteById(id);
+
+            // 3. WebSocket UI Sync: Tell all open screens to remove the card (No email
+            // sent)
+            for (String email : usersToNotify) {
+                webSocketHandler.notifyUser(email, "{\"type\":\"TASK_DELETED\"}");
+            }
+
             return ResponseEntity.ok(Map.of("message", "Task deleted successfully"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -149,18 +185,15 @@ public class TaskController {
         }
     }
 
-
     @GetMapping("/ping")
     public ResponseEntity<?> greetings() {
         try {
             return ResponseEntity.ok("greetings");
 
-            
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
         }
     }
-
 
 }

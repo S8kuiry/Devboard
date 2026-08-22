@@ -25,21 +25,22 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            // CORS is owned by the api-gateway (the only origin the browser talks to).
-            // Adding it here too made the gateway proxy BOTH sets of headers back, so the
-            // browser saw duplicated Access-Control-Allow-Origin/-Credentials and blocked
-            // every request. Keep exactly one CORS layer: the gateway.
-            .cors(AbstractHttpConfigurer::disable)
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                // Preflights are answered at the gateway; permitted here only so a
-                // directly-forwarded OPTIONS never turns into a confusing 401.
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/auth/register", "/auth/login", "/auth/exists", "/auth/emails", "/error").permitAll()
-                .anyRequest().authenticated()
-            )
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                // CORS is owned by the api-gateway (the only origin the browser talks to).
+                // Adding it here too made the gateway proxy BOTH sets of headers back, so the
+                // browser saw duplicated Access-Control-Allow-Origin/-Credentials and blocked
+                // every request. Keep exactly one CORS layer: the gateway.
+                .cors(AbstractHttpConfigurer::disable)
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        // Preflights are answered at the gateway; permitted here only so a
+                        // directly-forwarded OPTIONS never turns into a confusing 401.
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(
+                                "/auth/register", "/auth/login", "/auth/exists",
+                                "/auth/emails", "/auth/ping", "/error")
+                        .permitAll().anyRequest().authenticated())
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

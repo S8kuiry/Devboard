@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Lock, Mail, ArrowRight, UserPlus, ShieldCheck, Layers, Zap, Terminal, Loader2, User } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -6,12 +6,16 @@ import toast from 'react-hot-toast'
 
 export default function Register() {
   const [loader, setLoader] = useState(false)
+  const [isWarmingUp, setIsWarmingUp] = useState(true)
+
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const navigate = useNavigate()
   const authRoute = import.meta.env.VITE_AUTH_URL;
+ 
+  const ping_url_gateway = import.meta.env.VITE_AUTH_URL
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -43,8 +47,41 @@ export default function Register() {
     }
   }
 
+
+
+  const ping_render = async () => {
+  setIsWarmingUp(true);
+
+  let isReady = false;
+  while (!isReady) {
+    try {
+      const res = await fetch(`${ping_url_gateway}/gateway/ping`);
+      if (res.ok) {
+        isReady = true;
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+    }
+  }
+
+  setIsWarmingUp(false);
+};
+
+useEffect(() => {
+  ping_render();
+}, []);
+ 
+
+
   return (
     <div className="relative min-h-screen w-full bg-slate-950 font-sans text-slate-100 flex flex-col justify-between overflow-hidden p-6 lg:p-12">
+
+      {/* Server Cold-Start Status Indicator (Floating Top Center) */}
+    
+
+
       {/* Full-screen Background Grid & Ambient Lighting */}
       <div
         className="absolute inset-0 opacity-20 pointer-events-none"
@@ -66,8 +103,9 @@ export default function Register() {
             {'{'} Devboard {'}'}
           </span>
         </div>
-        <span className="inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3.5 py-1 text-xs font-mono text-indigo-400">
-          PROVISIONING
+        <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3.5 py-1 text-xs font-mono text-emerald-400">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          {isWarmingUp ?"Waking up backend microservices... ":"SYSTEM ONLINE"}
         </span>
       </header>
 
@@ -179,6 +217,11 @@ export default function Register() {
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span>Registering...</span>
+                  </>
+                ) : isWarmingUp ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Connecting to Backend...</span>
                   </>
                 ) : (
                   <>

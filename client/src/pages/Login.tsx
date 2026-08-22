@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Lock, Mail, ArrowRight, Terminal, ShieldCheck, Layers, Zap, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -6,11 +6,14 @@ import { useUsers } from '../context/UserContext'
 
 export default function Login() {
   const [loader, setLoader] = useState(false)
+  const [isWarmingUp, setIsWarmingUp] = useState(true)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const navigate = useNavigate()
   const authRoute = import.meta.env.VITE_AUTH_URL
   const { refreshUser } = useUsers()
+  
+  const ping_url_gateway = import.meta.env.VITE_AUTH_URL
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -23,7 +26,7 @@ export default function Login() {
         body: JSON.stringify(data)
       })
       const resData = await res.json()
-    
+
       if (res.ok) {
         localStorage.setItem('token', resData.token);
         localStorage.setItem('user', JSON.stringify({ name: resData.name, email: resData.email }));
@@ -44,8 +47,36 @@ export default function Login() {
     }
   }
 
+
+  const ping_render = async () => {
+  setIsWarmingUp(true);
+
+  let isReady = false;
+  while (!isReady) {
+    try {
+      const res = await fetch(`${ping_url_gateway}/gateway/ping`);
+      if (res.ok) {
+        isReady = true;
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+    }
+  }
+
+  setIsWarmingUp(false);
+};
+
+useEffect(() => {
+  ping_render();
+}, []);
   return (
     <div className="relative min-h-screen w-full bg-slate-950 font-sans text-slate-100 flex flex-col justify-between overflow-hidden p-6 lg:p-12">
+
+      
+
+
       {/* Full-screen Background Grid & Ambient Lighting */}
       <div
         className="absolute inset-0 opacity-20 pointer-events-none"
@@ -69,7 +100,7 @@ export default function Login() {
         </div>
         <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3.5 py-1 text-xs font-mono text-emerald-400">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          SYSTEM ONLINE
+          {isWarmingUp ?"Waking up backend microservices... ":"SYSTEM ONLINE"}
         </span>
       </header>
 
@@ -156,13 +187,18 @@ export default function Login() {
 
               <button
                 type="submit"
-                disabled={loader}
-                className="group relative flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/25 transition hover:bg-indigo-500 active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed"
+                disabled={loader || isWarmingUp}
+                className="group relative flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/25 transition hover:bg-indigo-500 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loader ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span>Signing In...</span>
+                  </>
+                ) : isWarmingUp ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Connecting to Backend...</span>
                   </>
                 ) : (
                   <>

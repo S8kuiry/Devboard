@@ -6,6 +6,13 @@ services:
     ports:
       - "8080:8080"
     restart: unless-stopped
+    develop:
+      watch:
+        - action: rebuild
+          path: ./auth-service
+          ignore:
+            - target/
+            - .git/
 
   task-service:
     build: ./task-service
@@ -17,6 +24,13 @@ services:
     depends_on:
       - auth-service
     restart: unless-stopped
+    develop:
+      watch:
+        - action: rebuild
+          path: ./task-service
+          ignore:
+            - target/
+            - .git/
 
   api-gateway:
     build: ./api-gateway
@@ -30,6 +44,13 @@ services:
       - auth-service
       - task-service
     restart: unless-stopped
+    develop:
+      watch:
+        - action: rebuild
+          path: ./api-gateway
+          ignore:
+            - target/
+            - .git/
 
   client:
     build: ./client
@@ -40,3 +61,11 @@ services:
     depends_on:
       - api-gateway
     restart: unless-stopped
+    develop:
+      watch:
+        - action: rebuild
+          path: ./client
+          ignore:
+            - node_modules/
+            - dist/
+            - .git/

@@ -9,20 +9,17 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.devboard.taskservice.client.AuthClient;
-import com.devboard.taskservice.websocket.TaskWebSocketHandler;
 
 @Service
 
 public class EmailService {
     private final AuthClient authClient;
     private final JavaMailSender mailSender;
-    private final TaskWebSocketHandler webSocketHandler;
 
 
-    public EmailService(AuthClient authClient, JavaMailSender mailSender , TaskWebSocketHandler webSocketHandler) {
+    public EmailService(AuthClient authClient, JavaMailSender mailSender  ) {
         this.authClient = authClient;
         this.mailSender = mailSender;
-        this.webSocketHandler = webSocketHandler;
     }
 
     private void processTaskAssignments(List<String> targetEmails, String taskTitle) {
@@ -44,12 +41,12 @@ public class EmailService {
                 message.setText("You have been assigned the task '" + taskTitle + "'. Please register using this email to access and track it.");
             }
 
-            // Push real-time notification to the assigned user
-        // FIX: Use 'email' from the loop instead of 'task.getAssignedEmail()'
-            webSocketHandler.notifyUser(
-                email, 
-                "{\"type\":\"TASK_ASSIGNED\"}"
-            );
+        //     // Push real-time notification to the assigned user
+        // // FIX: Use 'email' from the loop instead of 'task.getAssignedEmail()'
+        //     webSocketHandler.notifyUser(
+        //         email, 
+        //         "{\"type\":\"TASK_ASSIGNED\"}"
+        //     );
             mailSender.send(message);
         }
 
@@ -63,6 +60,7 @@ public class EmailService {
     // plain detached lists, so they are safe to read off the request thread.
     @Async
     public void sendTaskAssignments(List<String> assignedEmails, String taskTitle) {
+        
         processTaskAssignments(assignedEmails, taskTitle);
 
     }
@@ -78,6 +76,8 @@ public class EmailService {
         if (oldEmails != null) {
             newlyAddedEmails.removeAll(oldEmails);
         }
+
+        
 
         // Send emails only to the newly added assignees
         processTaskAssignments(newlyAddedEmails, taskTitle);

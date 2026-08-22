@@ -20,7 +20,7 @@ const INITIAL_TASKS: Task[] = [
 ]
 
 export default function Dashboard() {
-  const {user} = useUsers()
+  const {user,fetchAssignedTasks} = useUsers()
   const taskUrl = import.meta.env.VITE_TASK_URL
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban')
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS)
@@ -213,6 +213,7 @@ export default function Dashboard() {
       if(res.ok){
         setTasks(prev => prev.filter(t => t.id !== id))
         toast.success(resBody.message || "Task deleted successfully")
+        fetchAssignedTasks()
 
       }else{
         console.error(resBody.error || "Task not deleted")

@@ -174,7 +174,7 @@ export default function PlansPage() {
           return (
             <div
               key={plan.id}
-              className="h-[485px] rounded-xl border border-white/5 bg-gradient-to-b from-emerald-900/60 via-slate-900/40 to-emerald-950/70 backdrop-blur-xl p-5 hover:border-white/20 transition-all duration-200 flex flex-col justify-between"
+              className="h-[485px] rounded-xl border border-white/5 bg-gradient-to-b from-indigo-900/60 via-slate-900/40 to-indigo-950/70 backdrop-blur-xl p-5 hover:border-white/20 transition-all duration-200 flex flex-col justify-between"
             >
               <div className="space-y-4 flex-1 min-h-0 flex flex-col">
                 {/* Header */}

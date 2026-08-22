@@ -22,6 +22,8 @@ interface UserContextType {
   loaders: boolean;
   setLoaders: React.Dispatch<React.SetStateAction<boolean>>;
 }
+const notificationSound = typeof window !== "undefined" ? new Audio("/notification.mp3") : null;
+
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
@@ -33,9 +35,30 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [unseenCount, setUnseenCount] = useState<number>(0);
   const [loaders, setLoaders] = useState<boolean>(false);
   const socketRef = useRef<WebSocket | null>(null)
+  const lastSoundTimeRef = useRef<number>(0);
 
   const authUrl = import.meta.env.VITE_AUTH_URL;
   const taskUrl = import.meta.env.VITE_TASK_URL;
+
+  // notification  section 
+  const playNotificationSound = () => {
+    if (!notificationSound) return;
+
+    const now = Date.now();
+    const COOLDOWN_MS = 2000; // 2 seconds cooldown
+
+    if (now - lastSoundTimeRef.current > COOLDOWN_MS) {
+      lastSoundTimeRef.current = now;
+      notificationSound.currentTime = 0;
+      notificationSound.play().catch((err) => {
+        // Suppress browser autoplay restriction errors
+        console.warn("Audio blocked by browser policy until user interacts:", err.message);
+      });
+    }
+  };
+
+
+
 
   // 1. Fetch system emails
   const fetchEmails = async () => {
@@ -156,72 +179,92 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
 
   // websocket connection
+  // Add dedicated WS URL environment variable with fallback directly to task-service (port 8081)
+  const taskWsUrl = import.meta.env.VITE_TASK_WS_URL || "ws://localhost:8081";
+
   useEffect(() => {
-  if (!user?.email) return;
+    if (!user?.email) return;
 
-  let isMounted = true;
-  let timerId: ReturnType<typeof setTimeout>;
+    let isMounted = true;
+    let timerId: ReturnType<typeof setTimeout>;
 
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const cleanHost = taskUrl.replace(/^https?:\/\//, "");
-  const wsUrl = `${protocol}//${cleanHost}/ws?email=${encodeURIComponent(user.email)}`;
+    // 1. Construct WebSocket URL pointing directly to task-service host
+    const cleanHost = taskWsUrl.replace(/^wss?:\/\//, "").replace(/^https?:\/\//, "");
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${cleanHost}/ws?email=${encodeURIComponent(user.email)}`;
 
-  const pingAndConnect = async () => {
-    try {
-      const res = await fetch(`${taskUrl}/tasks/ping`);
-      
-      if (res.ok && isMounted) {
-        const ws = new WebSocket(wsUrl);
-        socketRef.current = ws;
+    const pingAndConnect = async () => {
+      try {
+        // Ping HTTP REST endpoint through Gateway/Task URL
+        const res = await fetch(`${taskUrl}/tasks/ping`);
 
-        // Keep-alive timer reference
-        let pingInterval: ReturnType<typeof setInterval>;
+        if (res.ok && isMounted) {
+          const ws = new WebSocket(wsUrl);
+          socketRef.current = ws;
 
-        ws.onopen = () => {
-          // Send PING every 25s to stop Render's 55s idle timeout
-          pingInterval = setInterval(() => {
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ type: "PING" }));
+          let pingInterval: ReturnType<typeof setInterval>;
+
+          ws.onopen = () => {
+            // Send heartbeat every 25s to keep connection alive on Render/Cloud hosts
+            pingInterval = setInterval(() => {
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: "PING" }));
+              }
+            }, 25000);
+          };
+
+          ws.onmessage = (event) => {
+            // 2. Safe JSON parsing guard
+            try {
+              const data = JSON.parse(event.data);
+              if (data.type === "TASK_ASSIGNED") {
+                playNotificationSound(); // <--- Triggers sound safely
+
+
+              }
+              if (
+                data.type === "TASK_ASSIGNED" ||
+                data.type === "TASK_DELETED" ||
+                data.type === "TASK_UPDATED"
+              ) {
+                fetchAssignedTasks();
+              }
+
+            } catch (err) {
+              console.error("Error parsing WebSocket payload:", err);
             }
-          }, 25000);
-        };
+          };
 
-        ws.onmessage = (event) => {
-          const data = JSON.parse(event.data);
-          if (data.type === "TASK_ASSIGNED") {
-            fetchAssignedTasks();
-          }
-        };
+          ws.onclose = () => {
+            clearInterval(pingInterval);
+            if (isMounted) {
+              timerId = setTimeout(pingAndConnect, 3000);
+            }
+          };
 
-        ws.onclose = () => {
-          clearInterval(pingInterval); // Clear heartbeat on disconnect
-          if (isMounted) {
-            timerId = setTimeout(pingAndConnect, 3000);
-          }
-        };
-
-        return; 
+          return;
+        }
+      } catch (e) {
+        console.log("Server waking up, retrying ping in 3s...");
       }
-    } catch (e) {
-      console.log("Server waking up, retrying ping in 3s...");
-    }
 
-    if (isMounted) {
-      timerId = setTimeout(pingAndConnect, 3000);
-    }
-  };
+      if (isMounted) {
+        timerId = setTimeout(pingAndConnect, 3000);
+      }
+    };
 
-  pingAndConnect();
+    pingAndConnect();
 
-  return () => {
-    isMounted = false;
-    clearTimeout(timerId);
-    if (socketRef.current) {
-      socketRef.current.onclose = null; 
-      socketRef.current.close();
-    }
-  };
-}, [user?.email]);
+    return () => {
+      isMounted = false;
+      clearTimeout(timerId);
+      if (socketRef.current) {
+        socketRef.current.onclose = null;
+        socketRef.current.close();
+      }
+    };
+  }, [user?.email]);
+
 
   return (
     <UserContext.Provider

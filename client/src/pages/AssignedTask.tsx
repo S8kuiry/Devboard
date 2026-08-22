@@ -160,31 +160,6 @@ export default function AssignedTask() {
   }
 
 
-  // const fetchAssignedTasks = async () => {
-  //   // The user arrives from context a tick after mount, so skip until we have it
-  //   if (!CURRENT_USER_EMAIL) return
-  //   setIsLoading(true)
-  //   try {
-  //     // GET /tasks requires ownerEmail and responds with a bare array of tasks
-  //     const res = await fetch(`${taskUrl}/tasks?assignedEmail=${encodeURIComponent(CURRENT_USER_EMAIL)}`, {
-  //       method: 'GET'
-  //     })
-  //     const resBody = await res.json()
-  //     if (res.ok) {
-  //       setTasks(resBody as Task[])
-  //     } else {
-  //       console.error(resBody.error || "Failed to fetch task")
-  //     }
-
-  //   } catch (error) {
-  //     console.error("Something went wrong")
-  //     console.log("Error:", error)
-
-  //   } finally {
-  //     // finally, so a failed fetch clears the spinner instead of hanging on it
-  //     setIsLoading(false)
-  //   }
-  // }
 
 
   useEffect(() => {
@@ -202,6 +177,10 @@ export default function AssignedTask() {
     markAssignedAsSeen();
   }, [CURRENT_USER_EMAIL])
 
+
+  useEffect(()=>{
+    setTasks(assignedTasks)
+  },[])
 
 
   return (
