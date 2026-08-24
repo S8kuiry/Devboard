@@ -16,11 +16,11 @@ export type SortOption = 'priority' | 'status' | 'assigned' | 'dueDate'
 
 // --- Initial Mock Data ---
 const INITIAL_TASKS: Task[] = [
- 
+
 ]
 
 export default function Dashboard() {
-  const {user,fetchAssignedTasks,isWarmingUp,ping_render} = useUsers()
+  const { user, fetchAssignedTasks, isWarmingUp, ping_render } = useUsers()
   const taskUrl = import.meta.env.VITE_TASK_URL
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban')
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS)
@@ -62,35 +62,35 @@ export default function Dashboard() {
     setSelectedTask(null)
   }
 
-  const handleStatusChange = async(id: number, newStatus: TaskStatus, task:Task) => {
+  const handleStatusChange = async (id: number, newStatus: TaskStatus, task: Task) => {
     setTasks(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t))
     try {
       const data = {
         title: task.title,
-      description: task.description,
-      status: newStatus,
-      priority: task.priority,
-      ownerEmail: task.ownerEmail,
-      assignedEmails: task.assignedEmails,
-      startDate: task.startDate || null,
-      dueDate: task.dueDate || null
+        description: task.description,
+        status: newStatus,
+        priority: task.priority,
+        ownerEmail: task.ownerEmail,
+        assignedEmails: task.assignedEmails,
+        startDate: task.startDate || null,
+        dueDate: task.dueDate || null
 
       }
-      const res = await fetch(`${taskUrl}/tasks/${id}`,{
-        method:'PUT',
+      const res = await fetch(`${taskUrl}/tasks/${id}`, {
+        method: 'PUT',
         headers: { "Content-Type": "application/json" },
-        body:JSON.stringify(data)
+        body: JSON.stringify(data)
 
 
       })
 
-      if(res.ok){
+      if (res.ok) {
         toast.success("Task Status chnaged successfully ")
       }
-      
+
     } catch (error) {
       console.log(error)
-      
+
     }
   }
 
@@ -202,41 +202,52 @@ export default function Dashboard() {
 
   }, [user?.email])
 
-  useEffect(()=>{
+  useEffect(() => {
     ping_render()
-  },[])
+  }, [])
 
-  const handleDelete = async(id:number)=>{
+  const handleDelete = async (id: number) => {
     try {
 
-      const res = await fetch(`${taskUrl}/tasks/${id}`,{
+      const res = await fetch(`${taskUrl}/tasks/${id}`, {
         method: 'DELETE',
 
       })
 
       const resBody = await res.json()
-      if(res.ok){
+      if (res.ok) {
         setTasks(prev => prev.filter(t => t.id !== id))
         toast.success(resBody.message || "Task deleted successfully")
         fetchAssignedTasks()
 
-      }else{
+      } else {
         console.error(resBody.error || "Task not deleted")
       }
-      
+
     } catch (error) {
       console.error("Something went wrong");
       console.log("Error:", error);
-      
 
-      
+
+
     }
   }
 
-  
+
 
   return (
     <div className="pt-6 pl-9 lg:pl-11 pr-4 pb-20 space-y-6 max-w-[98%] w-full mx-auto">
+
+      <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-[11px] font-mono tracking-wide shadow-md backdrop-blur-md transition-all duration-300 ${isWarmingUp
+            ? 'border-amber-500/30 bg-slate-900/90 text-amber-300'
+            : 'border-emerald-500/30 bg-slate-900/90 text-emerald-400'
+          }`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${isWarmingUp ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`} />
+          <span>{isWarmingUp ? 'Connecting to backend...' : 'Backend Ready'}</span>
+        </div>
+      </div>
+
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -343,7 +354,7 @@ export default function Dashboard() {
                 ) : (
                   columnTasks.map((task) => (
                     <div
-                    onClick={() => handleOpenEditModal(task)}
+                      onClick={() => handleOpenEditModal(task)}
                       key={task.id}
                       className="group relative rounded-lg border border-white/10 bg-slate-700/5 p-4 space-y-3 hover:border-white/20 hover:bg-slate-900/90 shadow-lg backdrop-blur-md transition-all duration-200 "
                     >
@@ -406,7 +417,7 @@ export default function Dashboard() {
                         {/* Status Selector */}
                         <select
                           value={task.status}
-                          onChange={(e) => handleStatusChange(task.id, e.target.value as TaskStatus,task)}
+                          onChange={(e) => handleStatusChange(task.id, e.target.value as TaskStatus, task)}
                           className="bg-slate-950/80 border border-white/10 rounded-md px-2 py-1 text-slate-200 outline-none focus:border-indigo-500 cursor-pointer"
                         >
                           <option value="TODO" className="bg-slate-900 text-indigo-200">TODO</option>
@@ -469,7 +480,7 @@ export default function Dashboard() {
                       <td className="p-4">
                         <select
                           value={task.status}
-                          onChange={(e) => handleStatusChange(task.id, e.target.value as TaskStatus,task)}
+                          onChange={(e) => handleStatusChange(task.id, e.target.value as TaskStatus, task)}
                           className="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-[11px] text-slate-300 outline-none focus:border-indigo-500"
                         >
                           <option value="TODO">TODO</option>
@@ -503,7 +514,7 @@ export default function Dashboard() {
                         <button onClick={() => handleOpenEditModal(task)} className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Edit Task">
                           <Edit3 className="h-4 w-4" />
                         </button>
-                        <button onClick={()=>setDeleteTaskId(task.id)} className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Delete Task">
+                        <button onClick={() => setDeleteTaskId(task.id)} className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Delete Task">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </td>

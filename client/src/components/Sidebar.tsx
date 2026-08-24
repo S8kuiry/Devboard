@@ -52,7 +52,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   return (
     <aside
-      className={`fixed top-0 left-0 z-30 h-screen border-r border-slate-800/80 bg-slate-950/70 backdrop-blur-xl flex flex-col justify-between p-4 transition-[width] duration-200 ${collapsed ? 'w-20' : 'w-70'
+      className={`fixed top-0 left-0 z-30 h-screen border-r border-slate-800/80 bg-slate-950/70 backdrop-blur-xl flex flex-col justify-between p-4 transition-[width] duration-200 ${collapsed ? 'w-20' : 'w-72'
         }`}
     >
       <div className="space-y-6">
