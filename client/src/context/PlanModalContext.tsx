@@ -44,7 +44,7 @@ export const PlanModalProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const [steps, setSteps] = useState<Step[]>(EMPTY_STEPS)
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [chatInput, setChatInput] = useState('')
-    const [leftWidth, setLeftWidth] = useState(68)
+    const [leftWidth, setLeftWidth] = useState(52)
     const [loadedDraftKey, setLoadedDraftKey] = useState<string | null>(null)
     const draftKey = user?.email
         ? `${DRAFT_KEY_PREFIX}:${encodeURIComponent(user.email.toLowerCase())}`

@@ -26,7 +26,7 @@ public class CorsConfig implements WebMvcConfigurer {
                 // allowedOriginPatterns, not allowedOrigins: the literal "*" is illegal
                 // when allowCredentials is true, and Spring throws at startup.
                 .allowedOriginPatterns("*")
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS","PATCH")
                 .allowedHeaders("*");
     }
 }

@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -89,13 +90,11 @@ public class PlanController {
         }
     }
 
-
-
     @GetMapping
-    public ResponseEntity<?> getPlansByOwner(@RequestParam("ownerEmail") String ownerEmail){
+    public ResponseEntity<?> getPlansByOwner(@RequestParam("ownerEmail") String ownerEmail) {
         try {
             List<Plan> plans = planRepository.findByOwnerEmail(ownerEmail);
-            for(Plan plan : plans){
+            for (Plan plan : plans) {
                 plan.setSteps(stepsRepository.findByPlanIdOrderByPositionAsc(plan.getId()));
             }
             return ResponseEntity.ok(plans);
@@ -107,23 +106,36 @@ public class PlanController {
         }
     }
 
+    @PatchMapping("/steps/{stepId}/toggle")
+    public ResponseEntity<?> toggleStepStatus(@PathVariable Long stepId) {
+        try {
+            Steps step = stepsRepository.findById(stepId)
+                    .orElseThrow(() -> new RuntimeException("Step not found: " + stepId));
 
+            step.setIsCompleted(!step.getIsCompleted());
+            Steps updatedStep = stepsRepository.save(step);
+
+            return ResponseEntity.ok(updatedStep);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
 
     @DeleteMapping("/{id}")
     @Transactional
-    public ResponseEntity<?> deletePlan(@PathVariable Long id){
+    public ResponseEntity<?> deletePlan(@PathVariable Long id) {
         try {
 
             Plan isExist = planRepository.findById(id).get();
-            if(isExist == null){
+            if (isExist == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("error", "Plan not found with id: " + id));
             }
             stepsRepository.deleteByPlanId(id);
-             planRepository.deleteById(id);
+            planRepository.deleteById(id);
             return ResponseEntity.ok("Success");
 
-            
         } catch (Exception e) {
 
             return ResponseEntity
@@ -132,18 +144,15 @@ public class PlanController {
         }
     }
 
-
     @GetMapping("/ping")
     public ResponseEntity<?> greetings() {
         try {
             return ResponseEntity.ok("greetings");
 
-            
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
         }
     }
-
 
 }
