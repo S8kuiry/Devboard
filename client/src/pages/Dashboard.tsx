@@ -20,7 +20,7 @@ const INITIAL_TASKS: Task[] = [
 ]
 
 export default function Dashboard() {
-  const { user, fetchAssignedTasks, isWarmingUp, ping_render } = useUsers()
+  const { user, fetchAssignedTasks} = useUsers()
   const taskUrl = import.meta.env.VITE_TASK_URL
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban')
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS)
@@ -202,10 +202,7 @@ export default function Dashboard() {
 
   }, [user?.email])
 
-  useEffect(() => {
-    ping_render()
-  }, [])
-
+  
   const handleDelete = async (id: number) => {
     try {
 
@@ -236,18 +233,9 @@ export default function Dashboard() {
 
 
   return (
-    <div className="pt-6 pl-9 lg:pl-11 pr-4 pb-20 space-y-6 max-w-[98%] w-full mx-auto">
+    <div className="pt-6 pl-3 lg:pl-2 pr-4 pb-20 space-y-6 max-w-[98%] w-full mx-auto">
 
-      <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
-        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-[11px] font-mono tracking-wide shadow-md backdrop-blur-md transition-all duration-300 ${isWarmingUp
-            ? 'border-amber-500/30 bg-slate-900/90 text-amber-300'
-            : 'border-emerald-500/30 bg-slate-900/90 text-emerald-400'
-          }`}>
-          <span className={`h-1.5 w-1.5 rounded-full ${isWarmingUp ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`} />
-          <span>{isWarmingUp ? 'Connecting to backend...' : 'Backend Ready'}</span>
-        </div>
-      </div>
-
+     
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -334,7 +322,7 @@ export default function Dashboard() {
                 {/* Column Header */}
                 <div className="flex items-center justify-between pb-2 border-b border-white/10">
                   <div className="flex items-center gap-2">
-                    <span className={`h-2 w-2 rounded-full ${column.dot}`} />
+                    <span className={`h-2 w-2 rounded-full ${column.dot} animate-pulse ` } />
                     <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-200">
                       {column.label}
                     </h2>
