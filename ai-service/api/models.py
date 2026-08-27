@@ -2,6 +2,7 @@
 from pydantic import BaseModel,EmailStr
 from sqlmodel import SQLModel, Field
 from typing import Optional
+from datetime import datetime, timezone
 
 
 
@@ -44,3 +45,63 @@ class AuthResponse(BaseModel):
     token: str
     email: str
     name: str
+
+
+
+# ==========================================
+# 2. DATABASE ENTITY 
+# ==========================================
+class AgentConversation(SQLModel,table=True):
+    __tablename__="agent_conversation"
+
+    id: Optional[int] = Field(primary_key=True,default=None)
+    user_email : str = Field(nullable=False)
+    # Explicit datetime type hints with automatic timestamp defaults
+    created_at: datetime = Field(
+      default_factory=lambda: datetime.now(timezone.utc)
+    )
+    updated_at: datetime = Field(
+      default_factory=lambda: datetime.now(timezone.utc),
+      sa_column_kwargs={"onupdate": lambda: datetime.now(timezone.utc)},
+    )
+
+# ==========================================
+# 3. DATABASE ENTITY 
+# ==========================================
+class AgentMessage(SQLModel,table=True):
+    __tablename__="agent_message"
+
+    id : Optional[int] = Field(primary_key=True,default=None)
+
+    conversation_id : int = Field(
+        foreign_key="agent_conversation.id",nullable=False
+    )
+
+    # Restricts string values strictly to 'user' or 'assistant'
+    role : str = Field(nullable=False)
+
+    # Message content (maps to TEXT in PostgreSQL / SQLite)
+    content: str = Field(nullable=False)
+
+    # Creation timestamp
+    created_at: datetime = Field(
+      default_factory=lambda: datetime.now(timezone.utc)
+    ) 
+# ==========================================
+# SCHEMAS (Request / Response DTOs)
+# ==========================================
+class MessageRequest(BaseModel):
+    message : str
+
+class MessageResponse(BaseModel):
+    reply : str
+
+class AgentMessageOut(BaseModel):
+    role: str
+    content: str
+    created_at: datetime
+
+class ConversationResponse(BaseModel):
+    messages: list[AgentMessageOut]
+
+    

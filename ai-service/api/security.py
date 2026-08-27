@@ -2,10 +2,14 @@ import os
 import datetime
 import jwt
 import bcrypt
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
 
 # Secret Key & Algorithm (Matches Spring Boot JwtService with fallback)
 SECRET_KEY = os.getenv("JWT_SECRET") or "subhsecretmyverylongsecretkey123456"
 ALGORITHM = "HS256"
+security = HTTPBearer()
 
 
 def hash_password(password: str) -> str:
@@ -50,3 +54,19 @@ def extract_email(token: str) -> str | None:
         return payload.get("sub")
     except jwt.PyJWTError:
         return None
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> str:
+
+    token = credentials.credentials
+
+    email = extract_email(token)
+
+    if email is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+        )
+
+    return email

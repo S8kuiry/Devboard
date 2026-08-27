@@ -11,6 +11,7 @@ import DeleteModal from '../components/DeleteModal'
 import Loader from '../components/Loader'
 import toast from 'react-hot-toast'
 import { useUsers } from '../context/UserContext'
+import AgenticModal from '../components/AgenticModal'
 
 export type SortOption = 'priority' | 'status' | 'assigned' | 'dueDate'
 
@@ -161,11 +162,12 @@ export default function Dashboard() {
     ]
 
 
+
   const getPriorityBadge = (p: TaskPriority) => {
     switch (p) {
-      case 'HIGH': return 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-      case 'MEDIUM': return 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-      case 'LOW': return 'bg-indigo-500/10 text-indigo-400 border-indigo-700'
+      case 'HIGH': return 'bg-rose-500/15 text-rose-300 border-rose-500/30 font-semibold'
+      case 'MEDIUM': return 'bg-amber-500/15 text-amber-300 border-amber-500/30 font-semibold'
+      case 'LOW': return 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30 font-semibold'
     }
   }
 
@@ -240,13 +242,13 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-white">Task  Board</h1>
-          <p className="text-xs text-slate-400 mt-1">Organize microservice tasks and track team assignments</p>
+          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-white">Task Board</h1>
+          <p className="text-xs text-slate-300 mt-1">Organize microservice tasks and track team assignments</p>
         </div>
 
         <button
           onClick={handleOpenCreateModal}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-indigo-500 transition active:scale-[0.98]"
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-indigo-500 transition active:scale-[0.98] shadow-md shadow-indigo-600/20"
         >
           <Plus className="h-4 w-4" /> Create Task
         </button>
@@ -254,54 +256,68 @@ export default function Dashboard() {
 
       {/* Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-xl border border-slate-800 bg-slate-600/20 p-4 flex items-center justify-between ">
-          <div><p className="text-[10px] font-mono text-slate-500 uppercase">Total Tasks</p><p className="text-2xl font-bold font-mono text-white mt-1">{tasks.length}</p></div>
-          <Layers className="h-5 w-5 text-indigo-400" />
+        <div className="rounded-xl border border-slate-700/70 bg-gradient-to-br from-slate-800/90 via-slate-800/60 to-slate-900/90 p-4 flex items-center justify-between shadow-lg shadow-slate-950/40 backdrop-blur-md">
+          <div>
+            <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider font-semibold">Total Tasks</p>
+            <p className="text-2xl font-bold font-mono text-white mt-1">{tasks.length}</p>
+          </div>
+          <div className="p-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+            <Layers className="h-5 w-5" />
+          </div>
         </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-600/20  p-4 flex items-center justify-between ">
-          <div><p className="text-[10px] font-mono text-slate-500 uppercase">In Progress</p><p className="text-2xl font-bold font-mono text-amber-400/90 mt-1">{tasks.filter(t => t.status === 'IN_PROGRESS').length}</p></div>
-          <Clock className="h-5 w-5 text-amber-400" />
+        <div className="rounded-xl border border-slate-700/70 bg-gradient-to-br from-slate-800/90 via-slate-800/60 to-slate-900/90 p-4 flex items-center justify-between shadow-lg shadow-slate-950/40 backdrop-blur-md">
+          <div>
+            <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider font-semibold">In Progress</p>
+            <p className="text-2xl font-bold font-mono text-amber-300 mt-1">{tasks.filter(t => t.status === 'IN_PROGRESS').length}</p>
+          </div>
+          <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400">
+            <Clock className="h-5 w-5" />
+          </div>
         </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-600/20  p-4 flex items-center justify-between ">
-          <div><p className="text-[10px] font-mono text-slate-500 uppercase">Completed</p><p className="text-2xl font-bold font-mono text-emerald-400/90 mt-1">{tasks.filter(t => t.status === 'DONE').length}</p></div>
-          <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+        <div className="rounded-xl border border-slate-700/70 bg-gradient-to-br from-slate-800/90 via-slate-800/60 to-slate-900/90 p-4 flex items-center justify-between shadow-lg shadow-slate-950/40 backdrop-blur-md">
+          <div>
+            <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider font-semibold">Completed</p>
+            <p className="text-2xl font-bold font-mono text-emerald-300 mt-1">{tasks.filter(t => t.status === 'DONE').length}</p>
+          </div>
+          <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+            <CheckCircle2 className="h-5 w-5" />
+          </div>
         </div>
       </div>
 
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 pb-1">
         <div className="relative flex-1 max-w-xl">
-          <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-500" />
+          <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
           <input
             type="text"
             placeholder="Search tasks..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg border border-slate-500/70 bg-slate-950/60 py-2 pl-10 pr-4 text-xs text-slate-100 placeholder-slate-600 outline-none focus:border-indigo-500 transition"
+            className="w-full rounded-lg border border-slate-700/80 bg-slate-900/80 py-2 pl-10 pr-4 text-xs text-slate-100 placeholder-slate-400 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/30 transition shadow-inner"
           />
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-1.5">
+          <div className="flex items-center gap-2 rounded-lg border border-slate-700/80 bg-slate-900/80 px-3 py-1.5 shadow-sm">
             <ArrowUpDown className="h-3.5 w-3.5 text-indigo-400" />
-            <span className="text-[11px] font-mono text-slate-400">Sort:</span>
+            <span className="text-[11px] font-mono text-slate-300">Sort:</span>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="bg-transparent text-xs text-slate-200 outline-none font-medium cursor-pointer"
+              className="bg-transparent text-xs text-slate-100 outline-none font-medium cursor-pointer"
             >
               <option value="priority" className="bg-slate-900 text-slate-200">Priority</option>
               <option value="status" className="bg-slate-900 text-slate-200">Status</option>
-              {/* <option value="assigned" className="bg-slate-900 text-slate-200">Assigned</option> */}
               <option value="dueDate" className="bg-slate-900 text-slate-200">Due Date</option>
             </select>
           </div>
 
-          <div className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900/60 p-1">
-            <button onClick={() => setViewMode('kanban')} className={`p-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition ${viewMode === 'kanban' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}>
+          <div className="flex items-center gap-1 rounded-lg border border-slate-700/80 bg-slate-900/80 p-1 shadow-sm">
+            <button onClick={() => setViewMode('kanban')} className={`p-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition ${viewMode === 'kanban' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-300 hover:text-white hover:bg-slate-800'}`}>
               <Kanban className="h-3.5 w-3.5" /> Board Mode
             </button>
-            <button onClick={() => setViewMode('table')} className={`p-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition ${viewMode === 'table' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}>
+            <button onClick={() => setViewMode('table')} className={`p-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition ${viewMode === 'table' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-300 hover:text-white hover:bg-slate-800'}`}>
               <TableIcon className="h-3.5 w-3.5" /> Table View
             </button>
           </div>
@@ -323,7 +339,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between pb-2 border-b border-white/10">
                   <div className="flex items-center gap-2">
                     <span className={`h-2 w-2 rounded-full ${column.dot} animate-pulse ` } />
-                    <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-200">
+                    <h2 className="font-mono text-[11px] font-bold uppercase tracking-wider text-slate-100">
                       {column.label}
                     </h2>
                   </div>
@@ -335,7 +351,7 @@ export default function Dashboard() {
                 {isLoading ? (
                   <Loader accent={column.spinner} label="Loading tasks…" />
                 ) : columnTasks.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center gap-2 py-8 text-slate-500">
+                  <div className="flex flex-col items-center justify-center gap-2 py-8 text-slate-400">
                     <Inbox className="h-5 w-5" />
                     <p className="text-[11px] font-mono">{column.emptyMessage}</p>
                   </div>
@@ -344,20 +360,20 @@ export default function Dashboard() {
                     <div
                       onClick={() => handleOpenEditModal(task)}
                       key={task.id}
-                      className="group relative rounded-lg border border-white/10 bg-slate-700/5 p-4 space-y-3 hover:border-white/20 hover:bg-slate-900/90 shadow-lg backdrop-blur-md transition-all duration-200 "
+                      className="group relative rounded-lg border border-white/10 bg-gradient-to-br from-slate-600/20 via-slate-600/5 to-slate-600/20 p-4 space-y-3 hover:border-white/20 hover:bg-slate-900/90 shadow-lg backdrop-blur-md transition-all duration-200 "
                     >
                       {/* Header: Title & Actions */}
                       <div className="flex justify-between items-start gap-2">
                         <h3
                           onClick={() => handleOpenEditModal(task)}
-                          className="font-semibold text-xs text-slate-100 hover:text-indigo-400 cursor-pointer transition line-clamp-1"
+                          className="font-semibold text-xs text-white hover:text-indigo-300 cursor-pointer transition line-clamp-1"
                           title={task.title}
                         >
                           {task.title}
                         </h3>
                         <button
                           onClick={(e) => handleDeleteTask(e, task.id)}
-                          className="text-slate-400 hover:text-rose-400 p-1 rounded hover:bg-white/5 transition shrink-0"
+                          className="text-slate-400 hover:text-rose-400 p-1 rounded hover:bg-white/10 transition shrink-0"
                           title="Delete Task"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -376,8 +392,8 @@ export default function Dashboard() {
                         {/* Owner Badge */}
                         {task.ownerEmail && (
                           <div className="flex items-center gap-1 text-[10px] font-mono text-slate-400">
-                            <span className="text-slate-500">Owner:</span>
-                            <span className="truncate text-slate-300" title={task.ownerEmail}>
+                            <span className="text-slate-400">Owner:</span>
+                            <span className="truncate text-slate-200 font-medium" title={task.ownerEmail}>
                               {task.ownerEmail.split('@')[0]}
                             </span>
                           </div>
@@ -390,7 +406,7 @@ export default function Dashboard() {
                               <span
                                 key={idx}
                                 title={email}
-                                className="inline-flex items-center gap-1 rounded-full border border-indigo-500/30 bg-indigo-500/15 px-2 py-0.5 text-[9px] font-mono text-indigo-300 max-w-[110px]"
+                                className="inline-flex items-center gap-1 rounded-full border border-indigo-500/40 bg-indigo-500/20 px-2 py-0.5 text-[9px] font-mono text-indigo-200 max-w-[110px]"
                               >
                                 <span className="h-1 w-1 rounded-full bg-indigo-400 shrink-0" />
                                 <span className="truncate">{email}</span>
@@ -401,12 +417,12 @@ export default function Dashboard() {
                       </div>
 
                       {/* Footer: Status, Priority, & Date Range */}
-                      <div className="pt-2.5 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-[10px]">
+                      <div className="pt-2.5 border-t border-slate-700/60 flex flex-wrap items-center justify-between gap-2 text-[10px]">
                         {/* Status Selector */}
                         <select
                           value={task.status}
                           onChange={(e) => handleStatusChange(task.id, e.target.value as TaskStatus, task)}
-                          className="bg-slate-950/80 border border-white/10 rounded-md px-2 py-1 text-slate-200 outline-none focus:border-indigo-500 cursor-pointer"
+                          className="bg-slate-900 border border-slate-700 rounded-md px-2 py-1 text-slate-100 outline-none focus:border-indigo-400 cursor-pointer shadow-sm"
                         >
                           <option value="TODO" className="bg-slate-900 text-indigo-200">TODO</option>
                           <option value="IN_PROGRESS" className="bg-slate-900 text-yellow-200">IN PROGRESS</option>
@@ -438,11 +454,11 @@ export default function Dashboard() {
           })}
         </div>
       ) : (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 backdrop-blur-md overflow-hidden">
+        <div className="rounded-2xl border border-slate-700/80 bg-slate-900/70 backdrop-blur-md overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-slate-800 bg-slate-950/50 font-mono text-[11px] text-slate-400 uppercase tracking-wider">
+                <tr className="border-b border-slate-700/80 bg-slate-900/95 font-mono text-[11px] text-slate-300 uppercase tracking-wider">
                   <th className="p-4">Task Details</th>
                   <th className="p-4">Status</th>
                   <th className="p-4">Priority</th>
@@ -451,25 +467,25 @@ export default function Dashboard() {
                   <th className="p-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-slate-700/50">
                 {sortedTasks.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-slate-500 font-mono">No tasks found.</td>
+                    <td colSpan={6} className="p-8 text-center text-slate-400 font-mono">No tasks found.</td>
                   </tr>
                 ) : (
                   sortedTasks.map(task => (
-                    <tr key={task.id} className="hover:bg-slate-900/60 transition group">
+                    <tr key={task.id} className="hover:bg-slate-800/60 transition group">
                       <td className="p-4 max-w-xs">
-                        <h4 onClick={() => handleOpenEditModal(task)} className="font-semibold text-slate-100 hover:text-indigo-400 cursor-pointer transition truncate">
+                        <h4 onClick={() => handleOpenEditModal(task)} className="font-semibold text-slate-100 hover:text-indigo-300 cursor-pointer transition truncate">
                           {task.title}
                         </h4>
-                        <p className="text-[11px] text-slate-400 truncate mt-0.5">{task.description}</p>
+                        <p className="text-[11px] text-slate-300 truncate mt-0.5">{task.description}</p>
                       </td>
                       <td className="p-4">
                         <select
                           value={task.status}
                           onChange={(e) => handleStatusChange(task.id, e.target.value as TaskStatus, task)}
-                          className="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-[11px] text-slate-300 outline-none focus:border-indigo-500"
+                          className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 outline-none focus:border-indigo-400"
                         >
                           <option value="TODO">TODO</option>
                           <option value="IN_PROGRESS">IN_PROGRESS</option>
@@ -485,24 +501,24 @@ export default function Dashboard() {
                         <div className="flex flex-wrap gap-1 max-w-[200px]">
                           {task.assignedEmails?.length > 0 ? (
                             task.assignedEmails.map((email, idx) => (
-                              <span key={idx} title={email} className="my-0.5 inline-flex items-center gap-1 rounded-md border border-slate-500/20 bg-slate-500/10 px-1.5 py-0.5 text-[9px] font-mono text-slate-300">
-                                <UserCheck className="h-2.5 w-2.5 text-blue-400 shrink-0" />
+                              <span key={idx} title={email} className="my-0.5 inline-flex items-center gap-1 rounded-md border border-slate-600/50 bg-slate-700/50 px-1.5 py-0.5 text-[9px] font-mono text-slate-200">
+                                <UserCheck className="h-2.5 w-2.5 text-indigo-300 shrink-0" />
                                 <span className="truncate max-w-[80px]">{email}</span>
                               </span>
                             ))
                           ) : (
-                            <span className="text-slate-600 font-mono text-[10px]">Unassigned</span>
+                            <span className="text-slate-400 font-mono text-[10px]">Unassigned</span>
                           )}
                         </div>
                       </td>
-                      <td className="p-4 font-mono text-slate-400 text-[11px]">
+                      <td className="p-4 font-mono text-slate-300 text-[11px]">
                         {task.dueDate || 'N/A'}
                       </td>
                       <td className="p-4 text-right">
-                        <button onClick={() => handleOpenEditModal(task)} className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Edit Task">
+                        <button onClick={() => handleOpenEditModal(task)} className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition" title="Edit Task">
                           <Edit3 className="h-4 w-4" />
                         </button>
-                        <button onClick={() => setDeleteTaskId(task.id)} className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Delete Task">
+                        <button onClick={() => setDeleteTaskId(task.id)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Delete Task">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </td>
@@ -535,6 +551,9 @@ export default function Dashboard() {
           itemName={tasks.find(t => t.id === deleteTaskId)?.title}
         />
       )}
+
+
+      <AgenticModal/>
 
     </div>
   )

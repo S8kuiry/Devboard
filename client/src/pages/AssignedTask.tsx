@@ -184,7 +184,7 @@ export default function AssignedTask() {
 
 
   return (
-    <div className="pt-6 pl-9 lg:pl-11 pr-4 pb-20 space-y-6 max-w-[98%] w-full mx-auto">
+    <div className="pt-6 pl-3 lg:pl-3 pr-4 pb-20 space-y-6 max-w-[98%] w-full mx-auto">
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -203,15 +203,15 @@ export default function AssignedTask() {
 
       {/* Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-xl border border-slate-800 bg-slate-600/20 p-4 flex items-center justify-between ">
+        <div className="rounded-xl border border-slate-700/70 bg-gradient-to-br from-slate-800/90 via-slate-800/60 to-slate-900/90 p-4 flex items-center justify-between shadow-lg shadow-slate-950/40 backdrop-blur-md">
           <div><p className="text-[10px] font-mono text-slate-500 uppercase">Total Tasks</p><p className="text-2xl font-bold font-mono text-white mt-1">{tasks.length}</p></div>
           <Layers className="h-5 w-5 text-indigo-400" />
         </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-600/20  p-4 flex items-center justify-between ">
+        <div className="rounded-xl border border-slate-700/70 bg-gradient-to-br from-slate-800/90 via-slate-800/60 to-slate-900/90 p-4 flex items-center justify-between shadow-lg shadow-slate-950/40 backdrop-blur-md">
           <div><p className="text-[10px] font-mono text-slate-500 uppercase">In Progress</p><p className="text-2xl font-bold font-mono text-amber-400/90 mt-1">{tasks.filter(t => t.status === 'IN_PROGRESS').length}</p></div>
           <Clock className="h-5 w-5 text-amber-400" />
         </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-600/20  p-4 flex items-center justify-between ">
+        <div className="rounded-xl border border-slate-700/70 bg-gradient-to-br from-slate-800/90 via-slate-800/60 to-slate-900/90 p-4 flex items-center justify-between shadow-lg shadow-slate-950/40 backdrop-blur-md">
           <div><p className="text-[10px] font-mono text-slate-500 uppercase">Completed</p><p className="text-2xl font-bold font-mono text-emerald-400/90 mt-1">{tasks.filter(t => t.status === 'DONE').length}</p></div>
           <CheckCircle2 className="h-5 w-5 text-emerald-400" />
         </div>
@@ -292,7 +292,7 @@ export default function AssignedTask() {
                     <div
                       onClick={() => handleOpenEditModal(task)}
                       key={task.id}
-                      className="group relative rounded-lg border border-white/10 bg-slate-700/5 p-4 space-y-3 hover:border-white/20 hover:bg-slate-900/90 shadow-lg backdrop-blur-md transition-all duration-200 "
+                      className="group relative rounded-lg border border-white/10 bg-gradient-to-br from-slate-600/20 via-slate-600/5 to-slate-600/20 p-4 space-y-3 hover:border-white/20 hover:bg-slate-900/90 shadow-lg backdrop-blur-md transition-all duration-200 "
                     >
                       {/* Header: Title & Actions */}
                       <div className="flex justify-between items-start gap-2">

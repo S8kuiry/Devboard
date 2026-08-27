@@ -1,5 +1,6 @@
 # FastAPI entrypoint (imports routers & mounts app)
-
+from contextlib import asynccontextmanager
+from api.database import create_db_and_tables  # 👈 Import your database startup function
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -7,9 +8,10 @@ import uvicorn
 from api.convert_steps import router as convert_router
 from api.refine_plan import router as refine_router
 from api.auth_routes import router as auth_router
+from api.agent_routes import router as agent_router
 
-app = FastAPI(title="AI Service for Devboard")
-# Full Permissive CORS Policy
+
+app = FastAPI(title="AI Service for Devboard")# Full Permissive CORS Policy
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -22,6 +24,8 @@ app.add_middleware(
 app.include_router(convert_router)
 app.include_router(refine_router)
 app.include_router(auth_router)
+app.include_router(agent_router)
+
 
 
 

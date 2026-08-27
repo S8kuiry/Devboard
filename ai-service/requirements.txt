@@ -10,4 +10,5 @@ passlib[bcrypt]
 # compatibility-check value before Passlib can initialize its backend.
 bcrypt<5.0.0
 pyjwt
+requests
 pydantic[email]
