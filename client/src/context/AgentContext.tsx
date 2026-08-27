@@ -1,4 +1,5 @@
 import  { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import type { TaskCard } from '../components/agenticModal/TaskCard'
 
 export type TabType = 'home' | 'chats' | 'insights' | 'activity'
 
@@ -6,6 +7,9 @@ export interface BackendMessage {
   role: 'user' | 'assistant'
   content: string
   created_at: string
+  // Add these two optional fields:
+  data_type?: 'TASK_LIST' | 'TASK_SINGLE' | string
+  data?: TaskCard[] | TaskCard | any
 }
 
 export interface Conversation {

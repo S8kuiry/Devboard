@@ -1,7 +1,7 @@
 # Pydantic request/response schemas
 from pydantic import BaseModel,EmailStr
 from sqlmodel import SQLModel, Field
-from typing import Optional
+from typing import Optional,Any
 from datetime import datetime, timezone
 
 
@@ -90,12 +90,22 @@ class AgentMessage(SQLModel,table=True):
 # ==========================================
 # SCHEMAS (Request / Response DTOs)
 # ==========================================
+class PendingAction(BaseModel):
+    action_type: str  # 'create_task', 'update_task', 'delete_task'
+    arguments: dict
+    
 class MessageRequest(BaseModel):
     message : str
+    conversation_id: int | None = None
 
+# api/models.py
 class MessageResponse(BaseModel):
-    reply : str
-
+    reply: str
+    conversation_id: int
+    requires_approval: bool = False
+    pending_action: Optional[PendingAction] = None
+    data_type: Optional[str] = None  # "TASK_LIST" or "TASK_SINGLE"
+    data: Optional[Any] = None       # Array of task dicts for React Cards
 class AgentMessageOut(BaseModel):
     role: str
     content: str
@@ -103,5 +113,10 @@ class AgentMessageOut(BaseModel):
 
 class ConversationResponse(BaseModel):
     messages: list[AgentMessageOut]
+
+class ExecuteActionRequest(BaseModel):
+    conversation_id: int
+    action_type: str
+    arguments: dict
 
     
