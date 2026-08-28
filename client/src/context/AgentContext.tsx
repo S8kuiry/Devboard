@@ -1,5 +1,4 @@
 import  { createContext, useContext, useState, useEffect, type ReactNode, useRef } from 'react'
-import type { TaskCard } from '../components/agenticModal/TaskCard'
 
 export type TabType = 'home' | 'chats' | 'insights' | 'activity'
 
