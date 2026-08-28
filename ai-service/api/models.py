@@ -1,6 +1,6 @@
 # Pydantic request/response schemas
 from pydantic import BaseModel,EmailStr
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field,Column,JSON
 from typing import Optional,Any
 from datetime import datetime, timezone
 
@@ -68,25 +68,14 @@ class AgentConversation(SQLModel,table=True):
 # ==========================================
 # 3. DATABASE ENTITY 
 # ==========================================
-class AgentMessage(SQLModel,table=True):
-    __tablename__="agent_message"
-
-    id : Optional[int] = Field(primary_key=True,default=None)
-
-    conversation_id : int = Field(
-        foreign_key="agent_conversation.id",nullable=False
-    )
-
-    # Restricts string values strictly to 'user' or 'assistant'
-    role : str = Field(nullable=False)
-
-    # Message content (maps to TEXT in PostgreSQL / SQLite)
-    content: str = Field(nullable=False)
-
-    # Creation timestamp
-    created_at: datetime = Field(
-      default_factory=lambda: datetime.now(timezone.utc)
-    ) 
+class AgentMessage(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    conversation_id: int = Field(foreign_key="agent_conversation.id")
+    role: str
+    content: str
+    data_type: Optional[str] = None
+    data: Optional[Any] = Field(default=None, sa_column=Column(JSON)) # Stores task JSON in DB
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 # ==========================================
 # SCHEMAS (Request / Response DTOs)
 # ==========================================
@@ -106,10 +95,14 @@ class MessageResponse(BaseModel):
     pending_action: Optional[PendingAction] = None
     data_type: Optional[str] = None  # "TASK_LIST" or "TASK_SINGLE"
     data: Optional[Any] = None       # Array of task dicts for React Cards
+
+
 class AgentMessageOut(BaseModel):
     role: str
     content: str
     created_at: datetime
+    data_type: Optional[str] = None
+    data: Optional[Any] = None
 
 class ConversationResponse(BaseModel):
     messages: list[AgentMessageOut]

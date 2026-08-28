@@ -17,9 +17,12 @@ import {
   Trash2,
   Loader2
 } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { AGENTIC_MODAL_CHIPS } from '../lib/chips'
 import { useAgent, type TabType, } from '../context/AgentContext'
-import {  TaskCardComponent, type TaskCard } from './agenticModal/TaskCard'
+import { TaskCardComponent, type TaskCard } from './agenticModal/TaskCard'
+import { markdownComponents } from '../lib/markdown'
 
 export default function AgenticModal() {
   const {
@@ -40,7 +43,9 @@ export default function AgenticModal() {
     deleteConversation,
     startNewChat,
     isNewChat,
-    setIsNewChat
+    setIsNewChat,
+    handleExecuteAction,
+
   } = useAgent()
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
@@ -63,6 +68,9 @@ export default function AgenticModal() {
       inputRef.current?.focus()
     }
   }, [activeTab, isChatActive])
+
+
+
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end select-none font-sans">
@@ -205,28 +213,80 @@ export default function AgenticModal() {
                         </div>
                       )}
 
-                      {messages.map((msg, i) => (
-  <div key={i} className="space-y-1">
-    <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-[12px] leading-snug ${
-          msg.role === 'user' ? 'bg-indigo-700 text-white rounded-tr-none' : 'bg-slate-100 text-slate-800 rounded-tl-none'
-        }`}
-      >
-        <p>{msg.content}</p>
+                      {messages.map((msg: any, i: number) => (
+                        <div key={i} className="space-y-1">
+                          <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            <div
+                              className={`max-w-[85%] rounded-xl px-4 py-2.5 text-[12px] leading-snug ${msg.role === 'user'
+                                ? 'bg-indigo-700 text-white rounded-tr-none'
+                                : 'bg-slate-100 text-slate-800 rounded-tl-none'
+                                }`}
+                            >
 
-        {/* Dynamic Task Card Render */}
-        {msg.role === 'assistant' && msg.data_type === 'TASK_LIST' && Array.isArray(msg.data) && (
-          <div className="mt-2 space-y-2">
-            {msg.data.map((task: TaskCard) => (
-              <TaskCardComponent key={task.id} task={task} />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  </div>
-))}
+                              {msg.role === "assistant" ? (
+                                <ReactMarkdown
+
+                                  remarkPlugins={[remarkGfm]}
+                                  components={markdownComponents}
+                                >
+                                  {msg.content}
+                                </ReactMarkdown>
+
+
+                              ) : (
+                                <>
+                                { msg.content }
+                                </>
+
+                              )}
+
+                              {/* 1. Dynamic Task Cards */}
+                              {msg.role === 'assistant' && msg.data_type === 'TASK_LIST' && Array.isArray(msg.data) && (
+                                <div className="mt-2 space-y-2 w-auto">
+                                  {msg.data.map((task: TaskCard) => (
+                                    <TaskCardComponent key={task.id} task={task} />
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* 2. Interactive Approval Card */}
+                              {msg.role === 'assistant' && msg.requires_approval && msg.pending_action && (
+                                <div className="mt-3 p-3 bg-white rounded-xl border border-amber-200 shadow-xs space-y-2 text-slate-800">
+                                  <div className="font-semibold text-xs text-amber-700 flex items-center gap-1">
+                                    ⚠️ Confirm Action: <span className="font-mono">{msg.pending_action.action_type}</span>
+                                  </div>
+                                  <pre className="text-[10px] bg-slate-50 p-2 rounded border border-slate-100 overflow-x-auto font-mono text-slate-600">
+                                    {JSON.stringify(msg.pending_action.arguments, null, 2)}
+                                  </pre>
+                                  <div className="flex items-center gap-2 pt-1">
+                                    <button
+                                      onClick={() => handleExecuteAction(msg.pending_action, activeConversationId!)}
+                                      className="active:scale-96 px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-[11px] rounded-lg transition-colors cursor-pointer"
+                                    >
+                                      {!isLoading ? "Confirm & Execute" : "Executing..."}
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setMessages((prev) => [
+                                          ...prev,
+                                          {
+                                            role: 'assistant',
+                                            content: 'Action cancelled.',
+                                            created_at: new Date().toISOString()
+                                          }
+                                        ])
+                                      }}
+                                      className="px-3 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium text-[11px] rounded-lg transition-colors cursor-pointer"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
 
                       {isSending && (
                         <div className="flex justify-start">
@@ -253,12 +313,12 @@ export default function AgenticModal() {
                           rows={2}
                           value={inputText}
                           onChange={(e) => setInputText(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault()
-                              sendMessage()
-                            }
-                          }}
+                          // onKeyDown={(e) => {
+                          //   if (e.key === 'Enter' && !e.shiftKey) {
+                          //     e.preventDefault()
+                          //     sendMessage()
+                          //   }
+                          // }}
                           placeholder="Message..."
                           className="w-full bg-transparent text-xs text-slate-900 placeholder-slate-400 resize-none focus:outline-none"
                         />
@@ -315,15 +375,15 @@ export default function AgenticModal() {
                                   setActiveConversationId(chat.id)
                                 }}
                                 className={`w-full text-left flex items-center gap-3.5 p-4 rounded-xl border transition-all duration-200 cursor-pointer ${isActive
-                                    ? 'bg-indigo-50/80 border-indigo-200 shadow-sm'
-                                    : 'bg-white hover:bg-slate-50/80 border-slate-200/80 hover:border-slate-300 hover:shadow-sm'
+                                  ? 'bg-indigo-50/80 border-indigo-200 shadow-sm'
+                                  : 'bg-white hover:bg-slate-50/80 border-slate-200/80 hover:border-slate-300 hover:shadow-sm'
                                   }`}
                               >
                                 {/* Icon Avatar */}
                                 <div
                                   className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border transition-colors ${isActive
-                                      ? 'bg-indigo-600 text-white border-indigo-600'
-                                      : 'bg-indigo-50 text-indigo-600 border-indigo-100 group-hover:bg-indigo-100'
+                                    ? 'bg-indigo-600 text-white border-indigo-600'
+                                    : 'bg-indigo-50 text-indigo-600 border-indigo-100 group-hover:bg-indigo-100'
                                     }`}
                                 >
                                   <Bot size={20} />

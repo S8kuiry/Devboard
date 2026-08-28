@@ -93,18 +93,3 @@ export const CHAT_MESSAGES: Record<string, Message[]> = {
   ]
 }
 
-
-export const conversations_data = [
-    {
-        "id": 1,
-        "user_email": "subharthykuiry@gmail.com",
-        "created_at": "2026-08-25T10:00:00Z",
-        "updated_at": "2026-08-25T10:05:00Z",
-    },
-    {
-        "id": 2,
-        "user_email": "subharthykuiry@gmail.com",
-        "created_at": "2026-08-26T14:30:00Z",
-        "updated_at": "2026-08-26T14:32:00Z",
-    },
-]

@@ -17,7 +17,6 @@ from tools.agent_tools import TOOLS
 router = APIRouter(prefix="/agent", tags=["Agent"])
 
 MODEL = "openai/gpt-oss-20b"
-
 SYSTEM_PROMPT = """You are DevBoard AI, an automated assistant dedicated strictly to task management for DevBoard.
 
 User Email: {user_email}
@@ -30,6 +29,9 @@ Scope & Capabilities:
 Instructions & Rules:
 1. Feature Bounds:
    - If a user asks to perform an action or use a feature outside task management (e.g., "create a plan", "schedule a meeting", "send an email"), clearly inform them: "That feature is not available yet."
+   - Task data fetched earlier in this conversation (via `get_tasks` or `get_assigned_tasks`) remains valid for the rest of the conversation unless the user creates, updates, or deletes a task afterward. Do NOT call `get_tasks` or `get_assigned_tasks` again if the needed task data is already visible earlier in this conversation — instead, answer directly using that data: counting tasks, filtering by status/priority/due date, summarizing descriptions, or recommending which task to tackle first are all things you should reason about yourself from the existing data, not new function calls.
+   - Whenever you want to visually show the user one or more tasks (e.g. "show my tasks", "show the recent one", "show high-priority tasks", "show the task you recommended"), call `display_tasks` with the relevant task_ids. Never describe tasks in plain text when the user wants to see them — always use `display_tasks` for that. You must know the task IDs first (from an earlier get_tasks/get_assigned_tasks call in this conversation); if you don't have them yet, call get_tasks first, then call display_tasks.
+   - Only call `get_tasks` or `get_assigned_tasks` again if: (a) no task data has been fetched yet in this conversation, or (b) the user asks for an explicit refresh (e.g., "check again", "any new tasks?"), or (c) a task was just created/updated/deleted and the user now asks about the current task list.
 
 2. Task Creation Rules:
    - Task creation requires a `title`.
@@ -44,6 +46,7 @@ Instructions & Rules:
 
 
 MUTATING_TOOLS = {"create_task", "update_task", "delete_task"}
+MAX_TOOL_ITERATIONS = 5  # safety cap: max Groq round-trips per user message
 
 
 
@@ -64,8 +67,21 @@ def _get_or_create_conversation(session: Session, user_email: str, conversation_
     return conversation
 
 
-def _save_message(session: Session, conversation_id: int, role: str, content: str) -> AgentMessage:
-    message = AgentMessage(conversation_id=conversation_id, role=role, content=content)
+def _save_message(
+    session: Session, 
+    conversation_id: int, 
+    role: str, 
+    content: str, 
+    data_type: str | None = None, 
+    data: any = None
+) -> AgentMessage:
+    message = AgentMessage(
+        conversation_id=conversation_id, 
+        role=role, 
+        content=content,
+        data_type=data_type,
+        data=data
+    )
     session.add(message)
     session.commit()
     session.refresh(message)
@@ -105,7 +121,6 @@ def send_agent_message(
         conversation = _get_or_create_conversation(session, user_email, request.conversation_id)
         _save_message(session, conversation.id, "user", request.message)
 
-        # Context window capping to save Groq tokens
         history = session.exec(
             select(AgentMessage)
             .where(AgentMessage.conversation_id == conversation.id)
@@ -124,72 +139,107 @@ def send_agent_message(
         groq_messages += [{"role": m.role, "content": m.content} for m in history]
 
         groq_client = get_groq_client()
-        response = groq_client.chat.completions.create(
-            model=MODEL, messages=groq_messages, tools=TOOLS, tool_choice="auto"
-        )
-        choice = response.choices[0].message
 
-        if choice.tool_calls:
+        # 👇 NEW: remembers the most recent task data fetched anywhere in this
+        # request's loop, so we can attach TASK_LIST cards to the model's final
+        # text answer — even though that answer itself carries no tool call.
+        last_task_data_type: str | None = None
+        last_task_data: list | None = None
+
+        for _ in range(MAX_TOOL_ITERATIONS):
+            response = groq_client.chat.completions.create(
+                model=MODEL, messages=groq_messages, tools=TOOLS, tool_choice="auto"
+            )
+            choice = response.choices[0].message
+
+            # --- FINAL ANSWER: no more tools requested ---
+            if not choice.tool_calls:
+                reply_text = choice.content or ""
+                _save_message(
+                    session, conversation.id, "assistant", reply_text,
+                    data_type=last_task_data_type, data=last_task_data,
+                )
+                conversation.updated_at = datetime.now(timezone.utc)
+                session.commit()
+                return MessageResponse(
+                    reply=reply_text,
+                    conversation_id=conversation.id,
+                    data_type=last_task_data_type,
+                    data=last_task_data,
+                )
+
             tool_call = choice.tool_calls[0]
             tool_name = tool_call.function.name
             args = json.loads(tool_call.function.arguments)
 
-            # Intercept write actions for UI approval
+            # --- MUTATING ACTIONS (Requires UI Approval) — unchanged, still stops immediately ---
             if tool_name in MUTATING_TOOLS:
+                approval_msg = f"Approval required to run `{tool_name}`."
+                _save_message(session, conversation.id, "assistant", approval_msg)
                 return MessageResponse(
-                    reply=f"Approval needed to execute: {tool_name}",
+                    reply=approval_msg,
                     conversation_id=conversation.id,
                     requires_approval=True,
                     pending_action=PendingAction(action_type=tool_name, arguments=args),
                 )
 
-            # --- READ-ONLY TOOL EXECUTIONS ---
-            # --- READ-ONLY TOOL EXECUTIONS ---
+            # --- READ-ONLY TOOLS: execute, then feed result back into the loop ---
             tasks = None
-            if tool_name == "get_tasks":
-                tasks = get_tasks_by_owner(user_email)
-            elif tool_name == "get_assigned_tasks":
-                tasks = get_assigned_tasks(user_email)
+            try:
+                if tool_name == "get_tasks":
+                    tasks = get_tasks_by_owner(user_email)
+                elif tool_name == "get_assigned_tasks":
+                    tasks = get_assigned_tasks(user_email)
+                elif tool_name == "display_tasks":
+                    requested_ids = set(args.get("task_ids") or [])
+                    all_tasks = get_tasks_by_owner(user_email)
+                    tasks = [
+                        t for t in all_tasks
+                        if (t.get("id") if isinstance(t, dict) else getattr(t, "id", None)) in requested_ids
+                    ]
+            except Exception:
+                error_reply = "Task service is currently unavailable. Please try again later when the Gateway is Active."
+                _save_message(session, conversation.id, "assistant", error_reply)
+                return MessageResponse(reply=error_reply, conversation_id=conversation.id)
 
-            if tasks is not None:
-                groq_messages.append({
-                    "role": "assistant",
-                    "content": choice.content or "",
-                    "tool_calls": [{
+            trimmed_task_data = _trim_tasks(
+                [t.model_dump() if hasattr(t, 'model_dump') else dict(t) for t in (tasks or [])]
+            )
+
+            # Remember it in case the model's NEXT reply is the final text answer
+            last_task_data_type = "TASK_LIST"
+            last_task_data = trimmed_task_data
+
+            # 👇 NEW: feed the tool call + its result back into groq_messages
+            # so the model can keep reasoning (e.g. resolve a name to an ID,
+            # then call delete_task) instead of the request ending here.
+            groq_messages.append({
+                "role": "assistant",
+                "content": choice.content,
+                "tool_calls": [
+                    {
                         "id": tool_call.id,
                         "type": "function",
-                        "function": {"name": tool_name, "arguments": tool_call.function.arguments}
-                    }]
-                })
-                groq_messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": json.dumps(_trim_tasks(tasks)),
-                })
+                        "function": {
+                            "name": tool_call.function.name,
+                            "arguments": tool_call.function.arguments,
+                        },
+                    }
+                ],
+            })
+            groq_messages.append({
+                "role": "tool",
+                "tool_call_id": tool_call.id,
+                "content": json.dumps(trimmed_task_data),
+            })
+            # loop continues — model sees the result on the next iteration
 
-                follow_up = groq_client.chat.completions.create(model=MODEL, messages=groq_messages)
-                reply_text = follow_up.choices[0].message.content or "Here are your tasks:"
-
-                _save_message(session, conversation.id, "assistant", reply_text)
-                conversation.updated_at = datetime.now(timezone.utc)
-                session.commit()
-
-                # Return structured payload for Card rendering
-                return MessageResponse(
-                    reply=reply_text,
-                    conversation_id=conversation.id,
-                    data_type="TASK_LIST",
-                    data=tasks
-                )
-                reply_text = choice.content or ""
-        else:
-            reply_text = choice.content or ""
-
-        _save_message(session, conversation.id, "assistant", reply_text)
+        # Fallback: loop exhausted MAX_TOOL_ITERATIONS without a final answer
+        fallback_text = "I wasn't able to complete that — could you rephrase your request?"
+        _save_message(session, conversation.id, "assistant", fallback_text)
         conversation.updated_at = datetime.now(timezone.utc)
         session.commit()
-
-        return MessageResponse(reply=reply_text, conversation_id=conversation.id)
+        return MessageResponse(reply=fallback_text, conversation_id=conversation.id)
 
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -226,8 +276,6 @@ def get_conversation_messages(
     user_email: str = Depends(get_current_user),
 ):
     try:
-
-        # First verify that this conversation belongs to this user
         conversation = session.exec(
             select(AgentConversation)
             .where(
@@ -242,7 +290,6 @@ def get_conversation_messages(
                 content={"error": "Conversation not found"},
             )
 
-        # Fetch messages only for this conversation
         messages = session.exec(
             select(AgentMessage)
             .where(
@@ -253,12 +300,15 @@ def get_conversation_messages(
             )
         ).all()
 
+        # FIX: Include data_type and data when loading past conversation history
         return ConversationResponse(
             messages=[
                 AgentMessageOut(
                     role=m.role,
                     content=m.content,
-                    created_at=m.created_at
+                    created_at=m.created_at,
+                    data_type=m.data_type,
+                    data=m.data
                 )
                 for m in messages
             ]
@@ -269,7 +319,6 @@ def get_conversation_messages(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"error": str(e)},
         )
-
 
 @router.delete("/delete/{conversation_id}")
 def deleteConversation(

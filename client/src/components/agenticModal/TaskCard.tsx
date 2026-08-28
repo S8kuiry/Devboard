@@ -23,10 +23,10 @@ export const TaskCardComponent = ({ task }: { task: TaskCard }) => {
   }
 
   return (
-    <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs text-xs space-y-2 my-2 text-left">
+    <div className="bg-white p-3 rounded-lg border border-slate-300 shadow-md shadow-indigo-100 text-xs space-y-2 my-2.5 text-left w-60">
       <div className="flex items-start justify-between gap-2">
         <div className="font-semibold text-slate-900 leading-snug">
-          <span className="text-slate-400 font-mono mr-1.5">#{task.id}</span>
+          {/* <span className="text-slate-400 font-mono mr-1.5">#{task.id}</span> */}
           {task.title}
         </div>
         <span
@@ -44,7 +44,7 @@ export const TaskCardComponent = ({ task }: { task: TaskCard }) => {
         </p>
       )}
 
-      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+      <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-[11px]">
         <span
           className={`px-2 py-0.5 rounded-md font-medium text-[10px] ${
             statusColors[task.status as keyof typeof statusColors] || 'bg-slate-100 text-slate-600'
@@ -52,7 +52,7 @@ export const TaskCardComponent = ({ task }: { task: TaskCard }) => {
         >
           {task.status}
         </span>
-        <div className="flex items-center gap-1 text-slate-400 font-mono text-[10px]">
+        <div className="flex items-center gap-1 text-slate-500 font-mono text-[10px]">
           <Calendar size={12} />
           <span>{task.dueDate || 'No date'}</span>
         </div>

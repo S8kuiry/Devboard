@@ -4,7 +4,7 @@ import requests
 from typing import Any, Dict, List
 from fastapi import HTTPException
 
-SPRINGBOOT_URL = os.getenv("SPRINGBOOT_URL", "http://localhost:8080")
+SPRINGBOOT_URL = os.getenv("SPRINGBOOT_URL", "http://localhost:8081")
 
 # Cache storage: { cache_key: (timestamp, task_data) }
 _TASK_CACHE: Dict[str, tuple[float, List[Dict[str, Any]]]] = {}
