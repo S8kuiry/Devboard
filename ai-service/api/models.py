@@ -112,4 +112,9 @@ class ExecuteActionRequest(BaseModel):
     action_type: str
     arguments: dict
 
+
+#plans steps ttlcache handler
+class StepSyncRequest(BaseModel):
+    isCompleted: bool
+
     

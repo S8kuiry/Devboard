@@ -2,6 +2,7 @@ package com.devboard.taskservice.controller;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -106,6 +107,28 @@ public class PlanController {
         }
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getPlanById(@PathVariable Long id) {
+        try {
+            Optional<Plan> planOpt = planRepository.findById(id);
+
+            if (planOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "Plan not found with id: " + id));
+            }
+
+            Plan plan = planOpt.get();
+            plan.setSteps(stepsRepository.findByPlanIdOrderByPositionAsc(id));
+
+            return ResponseEntity.ok(plan);
+
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @PatchMapping("/steps/{stepId}/toggle")
     public ResponseEntity<?> toggleStepStatus(@PathVariable Long stepId) {
         try {
@@ -116,6 +139,45 @@ public class PlanController {
             Steps updatedStep = stepsRepository.save(step);
 
             return ResponseEntity.ok(updatedStep);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PatchMapping("/{planId}/steps/{stepId}")
+    public ResponseEntity<?> updateStepStatus(
+            @PathVariable Long planId,
+            @PathVariable Long stepId,
+            @RequestParam("ownerEmail") String ownerEmail,
+            @RequestBody Map<String, Boolean> body) {
+        try {
+            Plan plan = planRepository.findById(planId).orElse(null);
+            if (plan == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "Plan not found with id: " + planId));
+            }
+            if (!plan.getOwnerEmail().equals(ownerEmail)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Forbidden: you do not own this plan"));
+            }
+
+            Steps step = stepsRepository.findById(stepId)
+                    .orElseThrow(() -> new RuntimeException("Step not found: " + stepId));
+            if (!step.getPlanId().equals(planId)) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("error", "Step does not belong to plan " + planId));
+            }
+
+            Boolean isCompleted = body.get("isCompleted");
+            if (isCompleted == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("error", "isCompleted is required"));
+            }
+
+            step.setIsCompleted(isCompleted);
+            return ResponseEntity.ok(stepsRepository.save(step));
+
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
@@ -134,7 +196,8 @@ public class PlanController {
             }
             stepsRepository.deleteByPlanId(id);
             planRepository.deleteById(id);
-            return ResponseEntity.ok("Success");
+            return ResponseEntity.ok(
+                    Map.of("message", "Plan deleted successfully"));
 
         } catch (Exception e) {
 

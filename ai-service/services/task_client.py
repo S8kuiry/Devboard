@@ -124,3 +124,41 @@ def delete_task(task_id: int, current_user_email: str) -> Dict[str, Any]:
     except requests.RequestException as e:
         print(f"Connection error to Spring Boot: {str(e)}")
         raise HTTPException(status_code=503, detail="Task service unavailable")
+    
+
+def _trim_tasks(tasks: list[dict]) -> tuple[list[dict], list[dict]]:
+    """
+    Returns:
+    - full_data: for the frontend/user
+    - llm_data: reduced version for the LLM
+    """
+
+    if not isinstance(tasks, list):
+        return [], []
+
+    full_data = []
+    llm_data = []
+
+    for t in tasks:
+        if not isinstance(t, dict):
+            continue
+
+        # Full version — user sees everything
+        full_data.append(t)
+
+        # LLM version — remove unnecessary fields
+        desc = t.get("description") or ""
+
+        if len(desc) > 100:
+            desc = desc[:97] + "..."
+
+        llm_data.append({
+            "id": t.get("id"),
+            "title": t.get("title"),
+            "status": t.get("status"),
+            "priority": t.get("priority"),
+            "dueDate": t.get("dueDate"),
+            "description": desc,
+        })
+
+    return full_data, llm_data

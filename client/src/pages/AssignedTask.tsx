@@ -10,6 +10,7 @@ import TaskModal from '../components/TaskModal'
 import Loader from '../components/Loader'
 import { useUsers } from '../context/UserContext'
 import toast from 'react-hot-toast'
+import { useTaskModal } from '../context/TaskModalContext'
 
 export type SortOption = 'priority' | 'status' | 'assigned' | 'dueDate'
 
@@ -17,7 +18,7 @@ export type SortOption = 'priority' | 'status' | 'assigned' | 'dueDate'
 
 
 export default function AssignedTask() {
-  const { markAssignedAsSeen, fetchAssignedTasks, user,assignedTasks } = useUsers();
+  const { markAssignedAsSeen, fetchAssignedTasks, user, assignedTasks } = useUsers();
   const taskUrl = import.meta.env.VITE_TASK_URL
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban')
   const [tasks, setTasks] = useState<Task[]>(assignedTasks)
@@ -25,22 +26,21 @@ export default function AssignedTask() {
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<SortOption>('priority')
+  const { isOpen, initialTask, openModal, closeModal } = useTaskModal()
+
   // Modal state
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+
 
 
 
   const CURRENT_USER_EMAIL = user?.email
 
   const handleOpenCreateModal = () => {
-    setSelectedTask(null)
-    setIsModalOpen(true)
+    openModal()
   }
 
   const handleOpenEditModal = (task: Task) => {
-    setSelectedTask(task)
-    setIsModalOpen(true)
+    openModal(task)
   }
 
   // Receives the task as saved by the server, so it already carries a real id.
@@ -49,13 +49,10 @@ export default function AssignedTask() {
       ? prev.map(t => t.id === savedTask.id ? savedTask : t)
       : [...prev, savedTask])
     fetchAssignedTasks();
-    setIsModalOpen(false)
-    setSelectedTask(null)
+    closeModal()
   }
-
   const handleCloseTaskModal = () => {
-    setIsModalOpen(false)
-    setSelectedTask(null)
+    closeModal()
   }
 
   const handleStatusChange = async (id: number, newStatus: TaskStatus, task: Task) => {
@@ -178,9 +175,9 @@ export default function AssignedTask() {
   }, [CURRENT_USER_EMAIL])
 
 
-  useEffect(()=>{
+  useEffect(() => {
     setTasks(assignedTasks)
-  },[])
+  }, [])
 
 
   return (
@@ -456,15 +453,16 @@ export default function AssignedTask() {
       )}
 
       {/* Integrated Modular Task Modal */}
-      {isModalOpen && CURRENT_USER_EMAIL && (
+      {isOpen && CURRENT_USER_EMAIL && (
         <TaskModal
-          key={selectedTask ? selectedTask.id : 'new-task'}
+          key={initialTask ? initialTask.id : 'new-task'}
           onClose={handleCloseTaskModal}
           onSubmit={handleSaveTask}
           currentUserEmail={CURRENT_USER_EMAIL}
-          initialTask={selectedTask}
+          initialTask={initialTask}
         />
       )}
+
     </div>
   )
 }

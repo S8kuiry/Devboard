@@ -17,6 +17,8 @@ interface PlanModalProps {
 export default function PlanModal({ onClose, onSave, currentUserEmail, initialPlan }: PlanModalProps) {
     const taskUrl = import.meta.env.VITE_TASK_URL
     const aiUrl = import.meta.env.VITE_AI_URL
+    const FASTAPI_URL = import.meta.env.VITE_AI_URL
+
     const { setLoaders } = useUsers()
 
     // 1. Consume Context State (Auto-persisted to localStorage)
@@ -33,6 +35,15 @@ export default function PlanModal({ onClose, onSave, currentUserEmail, initialPl
     const [isResizing, setIsResizing] = useState(false)
     const [draggedIdx, setDraggedIdx] = useState<number | null>(null)
     const [isSaving, setIsSaving] = useState(false)
+
+    const getAuthHeaders = () => {
+        const token = localStorage.getItem('token') || ''
+        return {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+        }
+    }
+
 
     // 2. Initialize from initialPlan if context title is empty
     useEffect(() => {
@@ -71,10 +82,57 @@ export default function PlanModal({ onClose, onSave, currentUserEmail, initialPl
         setDraggedIdx(null)
     }
 
-    const handleToggleStep = (index: number) => {
+    const handleToggleStep = async (index: number) => {
+        const step = steps[index]
+
+        // New step that hasn't been saved yet
+        if (!step?.id) {
+            setSteps(prev =>
+                prev.map((s, i) =>
+                    i === index
+                        ? { ...s, isCompleted: !s.isCompleted }
+                        : s
+                )
+            )
+            return
+        }
+
+        const previousSteps = [...steps]
+
+        // Optimistic UI update
         setSteps(prev =>
-            prev.map((step, i) => (i === index ? { ...step, isCompleted: !step.isCompleted } : step))
+            prev.map((s, i) =>
+                i === index
+                    ? { ...s, isCompleted: !s.isCompleted }
+                    : s
+            )
         )
+
+        try {
+            const res = await fetch(
+                `${taskUrl}/plans/steps/${step.id}/toggle`,
+                {
+                    method: 'PATCH',
+                }
+            )
+
+            if (!res.ok) {
+                throw new Error('Failed to toggle step')
+            }
+
+            // Invalidate FastAPI plan cache
+            await fetch(`${FASTAPI_URL}/agent/plans/invalidate-cache`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+            }).catch(() => { })
+
+        } catch (error) {
+            // Revert UI if backend request failed
+            setSteps(previousSteps)
+
+            console.error('Error toggling step:', error)
+            toast.error('Could not update step')
+        }
     }
 
     const handleAddStep = () => {
@@ -164,9 +222,13 @@ export default function PlanModal({ onClose, onSave, currentUserEmail, initialPl
             const data = await res.json()
 
             if (!res.ok) {
+
                 throw new Error(data.error || 'Failed to save plan')
             }
-
+            await fetch(`${FASTAPI_URL}/agent/plans/invalidate-cache`, {
+                method: "POST",
+                headers: getAuthHeaders(),
+            }).catch(() => { })
             toast.success(initialPlan?.id ? 'Plan updated successfully' : 'Plan created successfully')
             onSave(data)
             clearDraft() // Clear draft from localStorage upon successful save

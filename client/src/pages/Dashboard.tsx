@@ -12,6 +12,7 @@ import Loader from '../components/Loader'
 import toast from 'react-hot-toast'
 import { useUsers } from '../context/UserContext'
 import AgenticModal from '../components/AgenticModal'
+import { useTaskModal } from '../context/TaskModalContext'
 
 export type SortOption = 'priority' | 'status' | 'assigned' | 'dueDate'
 
@@ -21,7 +22,7 @@ const INITIAL_TASKS: Task[] = [
 ]
 
 export default function Dashboard() {
-  const { user, fetchAssignedTasks} = useUsers()
+  const { user, fetchAssignedTasks } = useUsers()
   const taskUrl = import.meta.env.VITE_TASK_URL
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban')
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS)
@@ -29,23 +30,24 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<SortOption>('priority')
+  const { isOpen, initialTask, openModal, closeModal } = useTaskModal()
+
+  const CURRENT_USER_EMAIL = user?.email
+
+
+
   // Modal state
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+
 
   // Id of the task pending delete confirmation
   const [deleteTaskId, setDeleteTaskId] = useState<number | null>(null)
 
-  const CURRENT_USER_EMAIL = user?.email
-
   const handleOpenCreateModal = () => {
-    setSelectedTask(null)
-    setIsModalOpen(true)
+    openModal()
   }
 
   const handleOpenEditModal = (task: Task) => {
-    setSelectedTask(task)
-    setIsModalOpen(true)
+    openModal(task)
   }
 
   // Receives the task as saved by the server, so it already carries a real id.
@@ -54,13 +56,10 @@ export default function Dashboard() {
       ? prev.map(t => t.id === savedTask.id ? savedTask : t)
       : [...prev, savedTask])
     fetchTasks();
-    setIsModalOpen(false)
-    setSelectedTask(null)
+    closeModal()
   }
-
   const handleCloseTaskModal = () => {
-    setIsModalOpen(false)
-    setSelectedTask(null)
+    closeModal()
   }
 
   const handleStatusChange = async (id: number, newStatus: TaskStatus, task: Task) => {
@@ -204,7 +203,7 @@ export default function Dashboard() {
 
   }, [user?.email])
 
-  
+
   const handleDelete = async (id: number) => {
     try {
 
@@ -237,7 +236,7 @@ export default function Dashboard() {
   return (
     <div className="pt-6 pl-3 lg:pl-2 pr-4 pb-20 space-y-6 max-w-[98%] w-full mx-auto">
 
-     
+
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -338,7 +337,7 @@ export default function Dashboard() {
                 {/* Column Header */}
                 <div className="flex items-center justify-between pb-2 border-b border-white/10">
                   <div className="flex items-center gap-2">
-                    <span className={`h-2 w-2 rounded-full ${column.dot} animate-pulse ` } />
+                    <span className={`h-2 w-2 rounded-full ${column.dot} animate-pulse `} />
                     <h2 className="font-mono text-[11px] font-bold uppercase tracking-wider text-slate-100">
                       {column.label}
                     </h2>
@@ -532,13 +531,13 @@ export default function Dashboard() {
       )}
 
       {/* Integrated Modular Task Modal */}
-      {isModalOpen && CURRENT_USER_EMAIL && (
+      {isOpen && CURRENT_USER_EMAIL && (
         <TaskModal
-          key={selectedTask ? selectedTask.id : 'new-task'}
+          key={initialTask ? initialTask.id : 'new-task'}
           onClose={handleCloseTaskModal}
           onSubmit={handleSaveTask}
           currentUserEmail={CURRENT_USER_EMAIL}
-          initialTask={selectedTask}
+          initialTask={initialTask}
         />
       )}
 
@@ -553,7 +552,7 @@ export default function Dashboard() {
       )}
 
 
-      <AgenticModal/>
+      <AgenticModal />
 
     </div>
   )

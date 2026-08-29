@@ -1,4 +1,4 @@
-TOOLS = [
+TASK_TOOLS = [
     {
         "type": "function",
         "function": {
