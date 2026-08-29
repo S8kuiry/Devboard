@@ -7,97 +7,26 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useUsers } from '../context/UserContext'
 import { usePlanModal } from '../context/PlanModalContext'
-import { PRESET_CHIPS, REPLY_CHIPS } from '../lib/chips'
+import { markdownDarkComponents } from '../lib/markdown'
 
 export interface ChatMessage {
     role: 'user' | 'ai'
     content: string
+    action?: 'none' | 'propose_steps'
+    steps?: string[]
 }
+
 
 interface PlanChatModalProps {
-    onClickConvert: (text: string) => void
+    onClickConvert: (steps: string[]) => void
+    onClickConvertDirect: (steps: string) => void
 }
 
-// Custom Markdown Component Renderers for clean Tailwind styling
-const markdownComponents = {
-    h1: ({ children }: any) => (
-        <h1 className="text-lg sm:text-xl font-bold text-slate-100 mt-4 mb-2 pb-1 border-b border-slate-800/80">{children}</h1>
-    ),
-    h2: ({ children }: any) => (
-        <h2 className="text-base sm:text-lg font-semibold text-slate-100 mt-3.5 mb-2">{children}</h2>
-    ),
-    h3: ({ children }: any) => (
-        <h3 className="text-sm sm:text-base font-semibold text-slate-200 mt-3 mb-1.5">{children}</h3>
-    ),
-    p: ({ children }: any) => (
-        <p className="text-sm leading-relaxed text-slate-300 my-2">{children}</p>
-    ),
-    ul: ({ children }: any) => (
-        <ul className="text-sm list-disc pl-5 my-2 space-y-1.5 text-slate-300">{children}</ul>
-    ),
-    ol: ({ children }: any) => (
-        <ol className="text-sm list-decimal pl-5 my-2 space-y-1.5 text-slate-300">{children}</ol>
-    ),
-    li: ({ children }: any) => (
-        <li className="text-sm leading-relaxed">{children}</li>
-    ),
-    strong: ({ children }: any) => (
-        <strong className="font-semibold text-slate-100">{children}</strong>
-    ),
-    em: ({ children }: any) => (
-        <em className="italic text-slate-300">{children}</em>
-    ),
-    blockquote: ({ children }: any) => (
-        <blockquote className="border-l-2 border-indigo-500/60 pl-3.5 my-3 text-slate-400 italic bg-slate-900/40 py-1.5 rounded-r-md text-sm leading-relaxed">
-            {children}
-        </blockquote>
-    ),
-    a: ({ href, children }: any) => (
-        <a href={href} target="_blank" rel="noreferrer" className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 transition-colors">
-            {children}
-        </a>
-    ),
-    hr: () => <hr className="my-4 border-slate-800/80" />,
-    code: ({ inline, className, children, ...props }: any) => {
-        if (inline) {
-            return (
-                <code className="bg-slate-800/90 text-indigo-300 px-1.5 py-0.5 rounded-md font-mono text-xs border border-slate-700/50" {...props}>
-                    {children}
-                </code>
-            )
-        }
-        return (
-            <div className="my-3 overflow-x-auto rounded-lg border border-slate-800 bg-slate-900/90 p-3.5 font-mono text-xs sm:text-[13px] text-slate-200 custom-scrollbar leading-relaxed">
-                <code {...props}>{children}</code>
-            </div>
-        )
-    },
-    table: ({ children }: any) => (
-        <div className="my-3 overflow-x-auto rounded-lg border border-slate-800/80 bg-slate-900/40 custom-scrollbar">
-            <table className="w-full text-left text-xs sm:text-sm border-collapse">{children}</table>
-        </div>
-    ),
-    thead: ({ children }: any) => (
-        <thead className="bg-slate-900 border-b border-slate-800 text-slate-200 font-semibold">{children}</thead>
-    ),
-    tbody: ({ children }: any) => (
-        <tbody className="divide-y divide-slate-800/50 text-slate-300">{children}</tbody>
-    ),
-    tr: ({ children }: any) => (
-        <tr className="hover:bg-slate-900/40 transition-colors">{children}</tr>
-    ),
-    th: ({ children }: any) => (
-        <th className="px-4 py-2.5 text-left font-medium text-slate-200">{children}</th>
-    ),
-    td: ({ children }: any) => (
-        <td className="px-4 py-2.5 leading-relaxed">{children}</td>
-    ),
-}
 
-export default function PlanChatModal({ onClickConvert }: PlanChatModalProps) {
+
+export default function PlanChatModal({ onClickConvert, onClickConvertDirect }: PlanChatModalProps) {
     const { loaders, setLoaders } = useUsers()
-    const { messages, setMessages, chatInput, setChatInput, steps } = usePlanModal()
-    
+const { messages, setMessages, chatInput, setChatInput, initialPlan, steps, title } = usePlanModal()
     const [copiedMessage, setCopiedMessage] = useState<number | null>(null)
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const aiUrl = import.meta.env.VITE_AI_URL
@@ -115,21 +44,16 @@ export default function PlanChatModal({ onClickConvert }: PlanChatModalProps) {
     }
 
     const buildTranscript = (history: ChatMessage[], newUserText: string) => {
-    const recentHistory = history.slice(-5)
-    const lines = recentHistory.map(m => `${m.role === 'user' ? 'User' : 'AI'}: ${m.content}`)
-    lines.push(`User: ${newUserText}`)
-    return lines.join('\n')
-}
+        const recentHistory = history.slice(-5)
+        const lines = recentHistory.map(m => `${m.role === 'user' ? 'User' : 'AI'}: ${m.content}`)
+        lines.push(`User: ${newUserText}`)
+        return lines.join('\n')
+    }
 
-    const handleSendMessage = async (
-        instruction: string = 'Discuss and help refine this plan; respond conversationally.',
-        mode: 'chat' | 'draft' = 'chat',
-        overrideText?: string
-    ) => {
+    const handleSendMessage = async (overrideText?: string) => {
         const userText = overrideText ?? chatInput
         if (!userText.trim()) return
 
-        // Messages update Context & sync automatically to localStorage
         setMessages(prev => [...prev, { role: 'user', content: userText }])
         if (!overrideText) setChatInput('')
         setLoaders(true)
@@ -140,14 +64,18 @@ export default function PlanChatModal({ onClickConvert }: PlanChatModalProps) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     raw_text: buildTranscript(messages, userText),
-                    instruction,
-                    mode,
+                    instruction: 'Discuss and help refine this plan; respond conversationally.',
                 }),
             })
             const resBody = await res.json()
 
             if (res.ok) {
-                setMessages(prev => [...prev, { role: 'ai', content: resBody.refinedText }])
+                setMessages(prev => [...prev, {
+                    role: 'ai',
+                    content: resBody.reply,
+                    action: resBody.action,
+                    steps: resBody.steps,
+                }])
             }
         } catch (error) {
             setMessages(prev => [...prev, { role: 'ai', content: 'Sorry, I could not process that.' }])
@@ -170,50 +98,58 @@ export default function PlanChatModal({ onClickConvert }: PlanChatModalProps) {
         }
     }, [chatInput])
 
-    // Prefill the chat with the current plan as an easy-to-read checklist.
-    // Only do this while the input is empty, so typing is never overwritten.
+
+    // On opening an existing plan for editing, prefill the input with a
+    // readable paragraph summary of its current state — once, only if the
+    // user hasn't already typed something, and only for edit sessions.
+
     useEffect(() => {
-        if (chatInput.trim()) return
+        if (!initialPlan || chatInput.trim() || messages.length > 0) return
 
-        const formattedSteps = steps
-            .filter(step => step.content.trim())
-            .map((step, index) => `${index + 1}. [${step.isCompleted ? 'x' : ' '}] ${step.content.trim()}`)
-            .join('\n\n')
+        const stepTexts = steps
+            .map(s => s.content.trim())
+            .filter(Boolean)
 
-        if (formattedSteps) {
-            setChatInput(formattedSteps)
-        }
-    }, [steps, chatInput, setChatInput])
+        if (stepTexts.length === 0) return
+
+        const stepList = stepTexts.length === 1
+            ? stepTexts[0]
+            : stepTexts.slice(0, -1).join(', ') + ', and ' + stepTexts[stepTexts.length - 1]
+
+        const summary = `This plan${title ? ` ("${title}")` : ''} currently has ${stepTexts.length} step${stepTexts.length === 1 ? '' : 's'}: ${stepList}.`
+
+        setChatInput(summary)
+    }, [initialPlan])
 
     return (
         <div className="flex flex-col min-h-0 h-full bg-slate-950 p-4 sm:p-5 text-slate-100">
 
-         
-            {/* Header */}
-           <div className="w-full mb-3 flex items-center justify-between shrink-0">
-    {/* Left Header Title & Icon */}
-    <div className="flex items-center gap-2 shrink-0">
-        <div className="p-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 shadow-sm">
-            <NotepadTextDashed className="h-3.5 w-3.5" />
-        </div>
-        <h3 className="text-xs font-semibold text-slate-200 tracking-wide">
-            DevBoard AI Assistant
-        </h3>
-    </div>
 
-    {/* Clear Chat Action Button */}
-    {messages.length > 0 && (
-        <button
-            type="button"
-            onClick={() => setMessages([])}
-            className="group flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/80 px-2.5 py-1 text-[11px] font-medium text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/30 transition-all active:scale-95 shadow-sm"
-            title="Clear Conversation"
-        >
-            <Trash2 className="h-3 w-3 text-slate-400 group-hover:text-rose-400 transition-colors" />
-            <span>Clear Chat</span>
-        </button>
-    )}
-</div>
+            {/* Header */}
+            <div className="w-full mb-3 flex items-center justify-between shrink-0">
+                {/* Left Header Title & Icon */}
+                <div className="flex items-center gap-2 shrink-0">
+                    <div className="p-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 shadow-sm">
+                        <NotepadTextDashed className="h-3.5 w-3.5" />
+                    </div>
+                    <h3 className="text-xs font-semibold text-slate-200 tracking-wide">
+                        DevBoard AI Assistant
+                    </h3>
+                </div>
+
+                {/* Clear Chat Action Button */}
+                {messages.length > 0 && (
+                    <button
+                        type="button"
+                        onClick={() => setMessages([])}
+                        className="group flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/80 px-2.5 py-1 text-[11px] font-medium text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/30 transition-all active:scale-95 shadow-sm"
+                        title="Clear Conversation"
+                    >
+                        <Trash2 className="h-3 w-3 text-slate-400 group-hover:text-rose-400 transition-colors" />
+                        <span>Clear Chat</span>
+                    </button>
+                )}
+            </div>
             {/* Message History Container */}
             <div className="flex-1 overflow-y-auto space-y-6 py-2 px-2 sm:px-6 custom-scrollbar">
                 {messages.length === 0 ? (
@@ -298,10 +234,36 @@ export default function PlanChatModal({ onClickConvert }: PlanChatModalProps) {
                                         <div className="relative group text-slate-200 leading-relaxed text-xs sm:text-[13px] font-normal pr-8">
                                             <ReactMarkdown
                                                 remarkPlugins={[remarkGfm]}
-                                                components={markdownComponents}
+                                                components={markdownDarkComponents}
                                             >
                                                 {msg.content}
                                             </ReactMarkdown>
+
+                                            {msg.action === 'propose_steps' && msg.steps && msg.steps.length > 0 && (
+                                                <div className="mt-2 space-y-1.5 rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+                                                    {msg.steps.map((step, i) => (
+
+                                                        <div key={i} className="flex items-start gap-2 text-xs text-slate-300">
+                                                            <span className="text-indigo-400 font-mono shrink-0">{i + 1}.</span>
+                                                            <span>
+                                                                <ReactMarkdown
+                                                                    remarkPlugins={[remarkGfm]}
+                                                                    components={markdownDarkComponents}
+                                                                >
+                                                                    {step}
+                                                                </ReactMarkdown>
+
+                                                            </span>
+                                                        </div>
+
+
+                                                    ))}
+                                                </div>
+                                            )}
+
+
+
+
 
                                             <button
                                                 type="button"
@@ -317,29 +279,19 @@ export default function PlanChatModal({ onClickConvert }: PlanChatModalProps) {
                                             </button>
                                         </div>
 
-                                        <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-slate-800/40">
-                                            <button key={idx}
-                                                type="button"
-                                                onClick={() => onClickConvert(msg.content)}
-                                                disabled={loaders}
-                                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 font-medium text-[11px] transition-all active:scale-95 disabled:opacity-40"
-                                            >
-                                                <NotepadTextDashed className="h-3 w-3 text-indigo-400" />
-                                                <span>{loaders && idx ? "Converting..." : "⚡ Convert to Steps"}</span>
-                                            </button>
-
-                                            {REPLY_CHIPS.map(chip => (
+                                        {msg.action === 'propose_steps' && msg.steps && msg.steps.length > 0 && (
+                                            <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-slate-800/40">
                                                 <button
-                                                    key={chip.label}
                                                     type="button"
-                                                    onClick={() => handleSendMessage(chip.instruction, 'draft', chip.label)}
+                                                    onClick={() => onClickConvert(msg.steps!)}
                                                     disabled={loaders}
-                                                    className="px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200 text-[11px] transition-all active:scale-95 disabled:opacity-40"
+                                                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 font-medium text-[11px] transition-all active:scale-95 disabled:opacity-40"
                                                 >
-                                                    {chip.label}
+                                                    <NotepadTextDashed className="h-3 w-3 text-indigo-400" />
+                                                    <span>⚡ Convert to Steps</span>
                                                 </button>
-                                            ))}
-                                        </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )
@@ -385,7 +337,7 @@ export default function PlanChatModal({ onClickConvert }: PlanChatModalProps) {
                                 <>
                                     <button
                                         type="button"
-                                        onClick={() => onClickConvert(chatInput)}
+                                        onClick={() => onClickConvertDirect(chatInput)}
                                         disabled={loaders}
                                         className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-medium text-[11px] transition-all active:scale-95 disabled:opacity-50"
                                     >
@@ -396,17 +348,6 @@ export default function PlanChatModal({ onClickConvert }: PlanChatModalProps) {
                                         )}
                                     </button>
 
-                                    {PRESET_CHIPS.map(chip => (
-                                        <button
-                                            key={chip.label}
-                                            type="button"
-                                            onClick={() => handleSendMessage(chip.instruction, 'draft')}
-                                            disabled={loaders}
-                                            className="px-2.5 py-1 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-slate-300 border border-slate-700 text-[11px] transition-all active:scale-95 disabled:opacity-50"
-                                        >
-                                            {chip.label}
-                                        </button>
-                                    ))}
                                 </>
                             )}
                         </div>

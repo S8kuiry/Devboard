@@ -153,7 +153,7 @@ export default function PlanModal({ onClose, onSave, currentUserEmail, initialPl
     }
 
     // ---- Chat AI step conversion ----
-    const handleConvertSteps = async (text: string) => {
+    const handleConvertStepsDirect = async (text: string) => {
         if (!text.trim()) return
 
         try {
@@ -181,7 +181,21 @@ export default function PlanModal({ onClose, onSave, currentUserEmail, initialPl
         } finally {
             setLoaders(false)
         }
-    }
+    } 
+
+    const handleConvertSteps = (rawSteps: string[]) => {
+    const newSteps: Step[] = rawSteps.map((content, idx) => ({
+        content,
+        isCompleted: false,
+        position: (idx + 1) * 1000.0,
+    }))
+    setSteps(newSteps)
+    toast.success('Converted to steps')
+}
+
+    
+    
+
 
     // ---- Save ----
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -278,6 +292,7 @@ export default function PlanModal({ onClose, onSave, currentUserEmail, initialPl
                 <div style={{ width: `${leftWidth}%` }} className="flex flex-col min-h-0">
                     <PlanChatModal
                         onClickConvert={handleConvertSteps}
+                        onClickConvertDirect={handleConvertStepsDirect}
                     />
                 </div>
 

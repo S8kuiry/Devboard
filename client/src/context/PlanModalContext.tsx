@@ -5,6 +5,8 @@ import { useUsers } from './UserContext'
 export interface ChatMessage {
     role: 'user' | 'ai'
     content: string
+    action?: 'none' | 'propose_steps'
+    steps?: string[]
 }
 
 interface PlanModalContextType {

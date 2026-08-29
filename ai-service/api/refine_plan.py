@@ -1,5 +1,4 @@
-# Route logic: "ask AI to modify my plan"
-
+import json
 import os
 from fastapi import APIRouter, HTTPException
 from .models import RefineRequest
@@ -9,30 +8,90 @@ router = APIRouter()
 
 CHAT_SYSTEM_PROMPT = """You are a helpful, versatile planning assistant.
 
-Decide which of these three situations applies to the user's message:
+You are having an ongoing conversation with the user. Use the full conversation
+context to understand their goals, previous decisions, requirements, questions,
+and unresolved details.
 
-1. Just conversation (a question, a comment, small talk) — respond naturally and briefly.
+Your purpose is to help the user think through ideas and plans. You can:
 
-2. Substantial but not a clear goal (pasted code, rough notes, a partial spec, general discussion) — do this instead:
-   - Understand what they're actually trying to accomplish.
-   - Point out what's missing, unclear, or could be improved.
-   - Suggest concrete next steps or features, conversationally, in a few sentences or a short list.
+* answer questions and explain concepts;
+* explore ideas and alternatives;
+* define project scope and requirements;
+* identify missing information, dependencies, or risks;
+* help make decisions;
+* suggest architecture or implementation approaches;
+* clarify vague requirements;
+* help the user gradually turn an idea into a concrete execution plan.
 
-3. A clear, stated goal (the user says what they want to build, achieve, or accomplish — even briefly, e.g. "I want to plan a product launch" or "build a login system") — respond with a short mini-draft:
-   - One or two sentences explaining your understanding of the goal and approach.
-   - Then a clear ordered list of concrete steps to get there.
-   Keep explanations brief — the list of steps is the main output, and it should be clean enough to convert directly into a task list.
+Do not rush to convert the conversation into execution steps. Planning, discussion,
+scope definition, and clarification are valuable parts of the process.
 
-Never force situation 3's format onto situations 1 or 2 — only use it when the user has clearly stated an actual goal."""
+Return ONLY a valid JSON object in this exact format:
+
+{
+"reply": "<your conversational response>",
+"action": "none" | "propose_steps",
+"steps": ["<step 1>", "<step 2>", "..."]
+}
+
+CONVERSATION BEHAVIOR:
+
+* Respond naturally to the user's latest message while using relevant information
+  from the previous conversation as context.
+* Do not repeat information unnecessarily.
+* If the user asks a question, answer it directly.
+* If the user wants to explore an idea, continue the discussion.
+* If requirements or scope are unclear, help clarify them.
+* If useful information is missing, ask focused questions instead of immediately
+  generating a plan.
+* Do not force the conversation toward execution steps.
+
+WHEN TO USE action = "none":
+
+Use "none" for normal conversation, explanations, brainstorming, architecture
+discussion, option comparison, scope definition, requirements gathering, or
+clarification.
+
+Also use "none" when there is not enough information to create a useful,
+actionable sequence of execution steps.
+
+When action is "none":
+
+* "steps" must be an empty array.
+* Continue the conversation naturally in "reply".
+
+WHEN TO USE action = "propose_steps":
+
+Use "propose_steps" when the conversation contains enough concrete information
+to create a useful sequence of actionable execution steps.
+
+This can happen when:
+
+* the user has described a sufficiently concrete goal;
+* important requirements have been established;
+* the implementation approach is reasonably clear;
+* or the user explicitly asks to turn the discussion into steps or a plan.
+
+Do not wait for every minor detail to be specified. If the available context is
+sufficient to create a useful first version of the plan, you may propose steps.
+
+When action is "propose_steps":
+
+* "reply" should naturally explain that the plan is ready to be converted into
+  execution steps.
+* Generate the best practical sequence based on the full conversation context.
+* Each step must be concise, complete, actionable, and clearly understandable.
+* Steps must be logically ordered.
+* Do not include numbering, bullets, markdown, or prefixes inside individual
+  step strings.
+* Do not invent major requirements that were not discussed.
+* Use an empty "steps" array only when action is "none".
+
+The decision to return "none" or "propose_steps" is yours. Prioritize helping
+the user think clearly over prematurely converting every discussion into steps.
+"""
 
 
-
-DRAFT_SYSTEM_PROMPT = """You are an expert project planner. Output ONLY structured plan drafts.
-Never use greetings, polite filler, or conversational meta-talk.
-Format strictly using these three sections:
-📋 Core Plan & Strategy: (concise, step-by-step breakdown along with proper explanation of each and every step)
-⚖️ Trade-offs & Dependencies: (resource trade-offs, priorities, prerequisites)
-⚠️ Risks & Bottlenecks: (pitfalls, edge cases, failure points)"""
 
 @router.post("/api/ai-refine")
 async def refine_plan(req: RefineRequest):
@@ -41,30 +100,28 @@ async def refine_plan(req: RefineRequest):
 
     try:
         client = get_groq_client()
-        system_prompt = DRAFT_SYSTEM_PROMPT if req.mode == "draft" else CHAT_SYSTEM_PROMPT
 
-        if req.mode == "draft":
-            prompt = f"""Instruction: {req.instruction}
-
-Current plan / conversation context:
-"{req.raw_text}"
-
-Produce a structured plan draft following the required format."""
-        else:
-            prompt = f"""Instruction: {req.instruction}
+        prompt = f"""Instruction: {req.instruction}
 
 Conversation so far:
 {req.raw_text}
 
-Continue the conversation naturally. Respond only to the latest User message — do not repeat earlier turns."""
+Continue naturally. Respond only to the latest User message."""
 
         response = client.chat.completions.create(
-            model=os.getenv("REFINE_MODEL")  or  "openai/gpt-oss-20b",
+            model=os.getenv("REFINE_MODEL") or "openai/gpt-oss-20b",
+            response_format={"type": "json_object"},
             messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt}
-            ]
+                {"role": "system", "content": CHAT_SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
         )
-        return {"refinedText": response.choices[0].message.content.strip()}
+
+        result = json.loads(response.choices[0].message.content)
+        return {
+            "reply": result.get("reply", ""),
+            "action": result.get("action", "none"),
+            "steps": result.get("steps", []),
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

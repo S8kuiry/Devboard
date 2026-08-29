@@ -16,16 +16,17 @@ async def convert_steps(req: ConvertRequest):
         client = get_groq_client()
         prompt = f"""
         Extract discrete, sequential, actionable execution steps from these raw developer notes.
-        Extract discrete, sequential, actionable execution steps from these raw developer notes.
 
-        Rules:
-        - Remove conversational fillers and transition words such as "first", "then", and "after that".
-        - Return each distinct action as a separate step.
-        - Preserve the chronological order.
-        - Each step must be a concise, complete sentence.
-        - Each step must end with a period.
-        - Do not include numbering or bullet characters.
-        - Return only the JSON object matching the required schema.
+Rules:
+- Remove conversational fillers and transition words such as "first", "then", and "after that".
+- Return each distinct action as a separate step.
+- Preserve the chronological order.
+- Each step must be a concise, complete sentence.
+- Each step must end with a period.
+- Each step should represent one meaningful unit of work — neither so broad it hides multiple actions, nor so granular it splits a single action into fragments.
+- If the notes mention a step-like item with no clear action verb (e.g. a heading or label), skip it rather than forcing it into a step.
+- Do not include numbering or bullet characters.
+- Return only the JSON object matching the required schema.
 
         Raw Notes:
         "{req.raw_text}"
