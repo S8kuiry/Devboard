@@ -90,6 +90,7 @@ export default function TaskModal({ onClose, onSubmit, currentUserEmail, initial
         }
       );
       const resBody = await res.json();
+      localStorage.removeItem(`task_insights_cache_${currentUserEmail}`)
 
       if (!res.ok) {
         console.error(resBody.error || `Failed to ${isEdit ? 'update' : 'create'} task`);

@@ -10,6 +10,7 @@ import PlanModal from '../components/PlanModal'
 import { useUsers } from '../context/UserContext'
 import DeleteModal from '../components/DeleteModal'
 import { usePlanModal } from '../context/PlanModalContext'
+import AgenticModal from '../components/AgenticModal'
 
 export default function PlansPage() {
   const { user, fetchPlans, plansTasks } = useUsers()
@@ -356,7 +357,9 @@ export default function PlansPage() {
           title="Delete Plan"
           itemName={plans.find(t => t.id === deleteTaskId)?.title}
         />
-      )}
+      )} 
+
+      <AgenticModal/>
     </div>
   )
 }

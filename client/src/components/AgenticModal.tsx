@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Bot,
   Home,
@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { AGENTIC_MODAL_CHIPS } from '../lib/chips'
+import { AGENTIC_MODAL_CHIPS, AGENTIC_MODAL_INSIGHTS_CHIPS } from '../lib/chips'
 import { useAgent, type TabType, } from '../context/AgentContext'
 import { TaskCardComponent, type TaskCard } from './agenticModal/TaskCard'
 import { markdownComponents } from '../lib/markdown'
@@ -30,6 +30,8 @@ import PlanModal from './PlanModal'
 import { useUsers } from '../context/UserContext'
 import { useTaskModal } from '../context/TaskModalContext'
 import TaskModal from './TaskModal'
+import { TaskInsightsView } from './agenticModal/TaskInsightsView'
+import PlanInsightsView from './agenticModal/PlanInsightsView'
 
 export default function AgenticModal() {
   const {
@@ -70,6 +72,7 @@ export default function AgenticModal() {
     openTaskModal(task)
   }
 
+  const [activeInsightChip, setActiveInsightChip] = useState('Tasks');
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const { isOpen: isPlanModalOpen, openModal, closeModal, clearDraft, initialPlan } = usePlanModal()
@@ -95,8 +98,6 @@ export default function AgenticModal() {
   }, [activeTab, isChatActive])
 
 
-  // planmodal related changes
-  // Plan modal handler
   const handleOpenPlan = (plan: Plan) => {
     clearDraft()
     openModal(plan)
@@ -174,9 +175,9 @@ export default function AgenticModal() {
               {activeTab === 'insights' && (
                 <h2 className="text-lg font-bold text-slate-900 tracking-tight">Your Insights</h2>
               )}
-              {activeTab === 'activity' && (
+              {/* {activeTab === 'activity' && (
                 <h2 className="text-lg font-bold text-slate-900 tracking-tight">Your Activity</h2>
-              )}
+              )} */}
             </div>
 
             {/* Dynamic Content Area */}
@@ -230,6 +231,8 @@ export default function AgenticModal() {
                   </div>
                 </div>
               )}
+
+
 
               {/* TAB 2: CHATS */}
               {activeTab === 'chats' && (
@@ -298,15 +301,7 @@ export default function AgenticModal() {
                                         key={plan.id}
                                         plan={plan}
                                         onView={handleOpenPlan}
-                                      // onEdit={(p) => {
-                                      //   // wire this to whatever opens PlanModal elsewhere in your app —
-                                      //   // e.g. setEditingPlan(p); setIsPlanModalOpen(true)
-                                      // }}
-                                      // onDelete={(planId) => {
-                                      //   // wire this to your delete_task-style approval flow, or a
-                                      //   // direct confirm+call if you decide plan deletion doesn't
-                                      //   // need the requires_approval gate
-                                      // }}
+
                                       />
                                     ))}
                                   </div>
@@ -376,12 +371,7 @@ export default function AgenticModal() {
                             rows={2}
                             value={inputText}
                             onChange={(e) => setInputText(e.target.value)}
-                            // onKeyDown={(e) => {
-                            //   if (e.key === 'Enter' && !e.shiftKey) {
-                            //     e.preventDefault()
-                            //     sendMessage()
-                            //   }
-                            // }}
+
                             placeholder="Message..."
                             className="w-full bg-transparent text-xs text-slate-900 placeholder-slate-400 resize-none focus:outline-none"
                           />
@@ -511,41 +501,45 @@ export default function AgenticModal() {
               {/* TAB 3: INSIGHTS */}
               {activeTab === 'insights' && (
                 <div className="space-y-3 pt-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                      Assigned to you
-                    </span>
-                    <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
-                      3 active
-                    </span>
+
+                  {/* CHIPS ROW */}
+                  <div className="flex items-center gap-2 pb-1">
+                    {AGENTIC_MODAL_INSIGHTS_CHIPS.map((chip) => {
+                      const isActive = activeInsightChip === chip.label;
+                      return (
+                        <button
+                          key={chip.label}
+                          onClick={() => setActiveInsightChip(chip.label)}
+                          className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${isActive
+                            ? 'bg-indigo-600 text-white shadow-sm'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                        >
+                          {chip.label}
+                        </button>
+                      );
+                    })}
                   </div>
-                  <div className="space-y-2">
-                    {[
-                      { title: 'Fix JWT Refresh Token Expiry', service: 'Auth API', priority: 'High' },
-                      { title: 'Setup Render Keep-Alive Endpoint', service: 'DevOps', priority: 'Med' },
-                      { title: 'Refactor Sidebar Component Layout', service: 'Frontend', priority: 'Low' }
-                    ].map((task, i) => (
-                      <div
-                        key={i}
-                        className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 hover:border-slate-200 transition-all"
-                      >
-                        <h4 className="text-xs font-semibold text-slate-800">{task.title}</h4>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className="text-[10px] font-mono bg-white text-slate-500 px-2 py-0.5 rounded-md border border-slate-200">
-                            {task.service}
-                          </span>
-                          <span className="text-[10px] font-mono bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md border border-indigo-100 font-medium">
-                            {task.priority}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+
+
+
+                  {/* 1. TASKS VIEW */}
+                  {activeInsightChip === 'Tasks' && (
+                    <TaskInsightsView ownerEmail={user?.email || ""} />
+                  )}
+
+                  {/* 2. PLANS VIEW */}
+                  {activeInsightChip === 'Plans' && (
+                    <PlanInsightsView ownerEmail={user?.email || ""} />
+                  )}
+
                 </div>
               )}
 
+
+
               {/* TAB 4: ACTIVITY */}
-              {activeTab === 'activity' && (
+              {/* {activeTab === 'activity' && (
                 <div className="space-y-4 pt-2">
                   <div className="relative">
                     <Search size={16} className="absolute left-3.5 top-3 text-slate-400" />
@@ -573,16 +567,16 @@ export default function AgenticModal() {
                     ))}
                   </div>
                 </div>
-              )}
+              )} */}
             </div>
 
             {/* Bottom Navigation */}
-            <div className="grid grid-cols-4 gap-1 px-4 py-2 bg-white border-t border-slate-100">
+            <div className="grid grid-cols-3 gap-1 px-4 py-2 bg-white border-t border-slate-100">
               {[
                 { id: 'home', label: 'Home', icon: Home },
                 { id: 'chats', label: 'Chats', icon: MessageSquare },
                 { id: 'insights', label: 'Insights', icon: BarChart3Icon },
-                { id: 'activity', label: 'Activity', icon: NotebookTextIcon }
+                // { id: 'activity', label: 'Activity', icon: NotebookTextIcon }
               ].map((tab) => {
                 const Icon = tab.icon
                 const isActive = activeTab === tab.id

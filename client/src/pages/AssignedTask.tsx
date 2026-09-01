@@ -11,6 +11,7 @@ import Loader from '../components/Loader'
 import { useUsers } from '../context/UserContext'
 import toast from 'react-hot-toast'
 import { useTaskModal } from '../context/TaskModalContext'
+import AgenticModal from '../components/AgenticModal'
 
 export type SortOption = 'priority' | 'status' | 'assigned' | 'dueDate'
 
@@ -462,6 +463,8 @@ export default function AssignedTask() {
           initialTask={initialTask}
         />
       )}
+
+      <AgenticModal/>
 
     </div>
   )

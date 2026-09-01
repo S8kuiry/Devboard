@@ -1,5 +1,6 @@
 package com.devboard.taskservice.controller;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.devboard.taskservice.dto.PlanInsightsDTO;
 import com.devboard.taskservice.entity.Plan;
 import com.devboard.taskservice.entity.Steps;
 import com.devboard.taskservice.repository.PlanRepository;
@@ -217,5 +219,69 @@ public class PlanController {
                     .body(Map.of("error", e.getMessage()));
         }
     }
+
+
+
+    @GetMapping("/plans/insights")
+public ResponseEntity<?> getPlanInsights(@RequestParam String ownerEmail) {
+    try {
+        List<PlanInsightsDTO.PlanStepProjection> projections = planRepository.findPlanSummariesByOwner(ownerEmail);
+
+        long totalPlans = projections.size();
+        long completedPlans = 0; // <--- NEW COUNTER
+        long pendingPlans = 0;   // <--- NEW COUNTER
+
+        long totalSteps = 0;
+        long completedSteps = 0;
+
+        List<PlanInsightsDTO.PlanSummary> planSummaries = new ArrayList<>();
+
+        for (PlanInsightsDTO.PlanStepProjection p : projections) {
+            long tSteps = p.getTotalSteps() != null ? p.getTotalSteps() : 0;
+            long cSteps = p.getCompletedSteps() != null ? p.getCompletedSteps() : 0;
+
+            totalSteps += tSteps;
+            completedSteps += cSteps;
+
+            // Plan is complete if it has steps and all steps are finished
+            if (tSteps > 0 && cSteps == tSteps) {
+                completedPlans++;
+            } else {
+                pendingPlans++;
+            }
+
+            double progress = tSteps > 0 ? ((double) cSteps / tSteps) * 100 : 0.0;
+
+            planSummaries.add(new PlanInsightsDTO.PlanSummary(
+                p.getPlanId(),
+                p.getTitle(),
+                tSteps,
+                cSteps,
+                Math.round(progress * 10.0) / 10.0,
+                p.getUpdatedAt() != null ? p.getUpdatedAt().toString() : null
+            ));
+        }
+
+        long pendingSteps = totalSteps - completedSteps;
+        double overallProgress = totalSteps > 0 ? ((double) completedSteps / totalSteps) * 100 : 0.0;
+
+        PlanInsightsDTO.Response response = new PlanInsightsDTO.Response(
+            totalPlans,
+            completedPlans, // <--- PASS HERE
+            pendingPlans,   // <--- PASS HERE
+            totalSteps,
+            completedSteps,
+            pendingSteps,
+            Math.round(overallProgress * 10.0) / 10.0,
+            planSummaries
+        );
+
+        return ResponseEntity.ok(response);
+
+    } catch (Exception e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("error", e.getMessage()));
+    }
+}
 
 }

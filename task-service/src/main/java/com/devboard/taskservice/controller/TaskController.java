@@ -1,6 +1,8 @@
 package com.devboard.taskservice.controller;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.devboard.taskservice.dto.TaskInsightsDTO;
 import com.devboard.taskservice.entity.Task;
 import com.devboard.taskservice.repository.TaskRepository;
 import com.devboard.taskservice.service.EmailService;
@@ -221,5 +224,101 @@ public class TaskController {
                     .body(Map.of("error", e.getMessage()));
         }
     }
+
+
+
+  @GetMapping("/insights")
+public ResponseEntity<?> getTaskInsights(@RequestParam String ownerEmail) {
+    try {
+        // 1. Fetch all tasks where user is Owner OR Assignee
+        List<Task> allUserTasks = taskRepository.findAllUserRelatedTasks(ownerEmail);
+        LocalDate today = LocalDate.now();
+
+        long totalTasks = allUserTasks.size();
+        long completedTasks = 0;
+        long activeTasks = 0;
+        long overdueTasks = 0;
+        long createdTasksCount = 0;
+        long assignedTasksCount = 0;
+
+        Map<String, Long> statusBreakdown = new HashMap<>();
+        Map<String, Long> priorityBreakdown = new HashMap<>();
+        List<TaskInsightsDTO.TaskSummary> taskSummaries = new ArrayList<>();
+
+        // Initialize status and priority maps with default 0s
+        for (Task.Status s : Task.Status.values()) statusBreakdown.put(s.name(), 0L);
+        for (Task.Priority p : Task.Priority.values()) priorityBreakdown.put(p.name(), 0L);
+
+        // 2. Single-pass aggregation
+        for (Task task : allUserTasks) {
+            // Count Status & Priority
+            if (task.getStatus() != null) {
+                String sName = task.getStatus().name();
+                statusBreakdown.put(sName, statusBreakdown.getOrDefault(sName, 0L) + 1);
+            }
+            if (task.getPriority() != null) {
+                String pName = task.getPriority().name();
+                priorityBreakdown.put(pName, priorityBreakdown.getOrDefault(pName, 0L) + 1);
+            }
+
+            // Completion & Overdue Checks
+            boolean isDone = task.getStatus() == Task.Status.DONE;
+            if (isDone) {
+                completedTasks++;
+            } else {
+                activeTasks++;
+                // Check if task is overdue
+                if (task.getDueDate() != null && task.getDueDate().isBefore(today)) {
+                    overdueTasks++;
+                }
+            }
+
+            // Role Breakdown (Created vs Assigned)
+            if (ownerEmail.equalsIgnoreCase(task.getOwnerEmail())) {
+                createdTasksCount++;
+            }
+            if (task.getAssignedEmails() != null && task.getAssignedEmails().contains(ownerEmail)) {
+                assignedTasksCount++;
+            }
+
+            // Build lightweight DTO summary
+            taskSummaries.add(new TaskInsightsDTO.TaskSummary(
+                task.getId(),
+                task.getTitle(),
+                task.getStatus(),
+                task.getPriority(),
+                task.getDueDate(),
+                task.getOwnerEmail(),
+                task.getAssignedEmails()
+            ));
+        }
+
+        // 3. Compute overall completion rate
+        double completionRate = totalTasks > 0 
+            ? Math.round(((double) completedTasks / totalTasks) * 100.0 * 10.0) / 10.0 
+            : 0.0;
+
+        // 4. Return complete response
+        TaskInsightsDTO.Response response = new TaskInsightsDTO.Response(
+            totalTasks,
+            completedTasks,
+            activeTasks,
+            overdueTasks,
+            createdTasksCount,
+            assignedTasksCount,
+            completionRate,
+            statusBreakdown,
+            priorityBreakdown,
+            taskSummaries
+        );
+
+        return ResponseEntity.ok(response);
+
+    } catch (Exception e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("error", e.getMessage()));
+    }
+}
+
 
 }

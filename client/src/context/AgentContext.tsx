@@ -1,6 +1,6 @@
 import  { createContext, useContext, useState, useEffect, type ReactNode, useRef } from 'react'
 
-export type TabType = 'home' | 'chats' | 'insights' | 'activity'
+export type TabType = 'home' | 'chats' | 'insights' 
 
 export interface BackendMessage {
   role: 'user' | 'assistant'
@@ -236,6 +236,29 @@ export const AgentProvider = ({ children }: { children: ReactNode }) => {
     console.error('Failed to execute action:', err)
   }
 }
+
+
+
+// //fetch insights 
+// const fetchInsights = useCallback(async () => {
+//   setIsLoading(true);
+  
+//   try {
+//     const res = await fetch(`http://localhost:8080/tasks/insights?ownerEmail=${encodeURIComponent(currentUserEmail)}`);
+//     if (!res.ok) {
+//       throw new Error(`HTTP error! Status: ${res.status}`);
+//     }
+//     const data = await res.json();
+//     setInsights(data);
+//   } catch (err) {
+//     console.warn("Backend API unreachable, displaying fallback demo data:", err.message);
+//     setInsightsError("Using offline demo data");
+//     // Fallback to mock data after a quick loading effect
+//     setInsights(MOCK_INSIGHTS);
+//   } finally {
+//     setIsLoadingInsights(false);
+//   }
+// }
 
   // Handle switching to a fresh chat view
   const startNewChat = () => {
