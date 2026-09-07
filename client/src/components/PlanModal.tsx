@@ -6,6 +6,8 @@ import StepsModal from './StepsPanel'
 import { useUsers } from '../context/UserContext'
 import PlanChatModal from './PlanChatModal'
 import { usePlanModal } from '../context/PlanModalContext'
+import { promoteDraft } from '../lib/rag'
+import { promoteChat } from '../lib/planChat'
 
 interface PlanModalProps {
     onClose: () => void
@@ -23,13 +25,8 @@ export default function PlanModal({ onClose, onSave, currentUserEmail, initialPl
 
     // 1. Consume Context State (Auto-persisted to localStorage)
     const {
-        title,
-        setTitle,
-        steps,
-        setSteps,
-        leftWidth,
-        setLeftWidth,
-        clearDraft
+        title, setTitle, steps, setSteps, leftWidth, setLeftWidth,
+        clearDraft, draftId, hasUploadedDocs,
     } = usePlanModal()
 
     const [isResizing, setIsResizing] = useState(false)
@@ -175,26 +172,28 @@ export default function PlanModal({ onClose, onSave, currentUserEmail, initialPl
                 setSteps(newSteps)
                 toast.success('Converted to steps')
             }
+
+
         } catch (error) {
             toast.error('Could not convert to steps')
             console.error(error)
         } finally {
             setLoaders(false)
         }
-    } 
+    }
 
     const handleConvertSteps = (rawSteps: string[]) => {
-    const newSteps: Step[] = rawSteps.map((content, idx) => ({
-        content,
-        isCompleted: false,
-        position: (idx + 1) * 1000.0,
-    }))
-    setSteps(newSteps)
-    toast.success('Converted to steps')
-}
+        const newSteps: Step[] = rawSteps.map((content, idx) => ({
+            content,
+            isCompleted: false,
+            position: (idx + 1) * 1000.0,
+        }))
+        setSteps(newSteps)
+        toast.success('Converted to steps')
+    }
 
-    
-    
+
+
 
 
     // ---- Save ----
@@ -238,6 +237,30 @@ export default function PlanModal({ onClose, onSave, currentUserEmail, initialPl
             if (!res.ok) {
 
                 throw new Error(data.error || 'Failed to save plan')
+            }
+
+            
+
+
+            // Migrate any docs uploaded during the chat from the temporary draft
+            // namespace into the permanent plan namespace.
+            if (!initialPlan?.id && draftId && hasUploadedDocs) {
+                try {
+                    await promoteDraft(draftId, data.id, aiUrl)
+                } catch (err) {
+                    console.error('Failed to migrate draft documents:', err)
+                }
+            }
+
+            // Promote chat history independent of hasUploadedDocs — a plan can have
+            // a full conversation with zero attached files, and that history still
+            // needs to move from the draft namespace to the real plan id.
+            if (!initialPlan?.id && draftId) {
+                try {
+                    await promoteChat(draftId, String(data.id), aiUrl)
+                } catch (err) {
+                    console.error('Failed to migrate chat history:', err)
+                }
             }
             await fetch(`${FASTAPI_URL}/agent/plans/invalidate-cache`, {
                 method: "POST",

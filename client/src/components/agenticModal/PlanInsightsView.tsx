@@ -3,8 +3,6 @@ import {
   RefreshCw,
   Target,
   Layers,
-  ListChecks,
-  CheckCircle2,
   Clock,
   AlertCircle,
   ChevronRight,

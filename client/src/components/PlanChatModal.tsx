@@ -1,19 +1,27 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-    Loader2, Bot, User, ArrowUp, ListPlus,
-    NotepadTextDashed, NotebookIcon, Check, Copy, Trash2
+    Loader2, Bot, ArrowUp, ListPlus,
+    NotepadTextDashed, NotebookIcon, Check, Copy, Trash2,
+    Paperclip,
+    X,
+    AlertCircle
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useUsers } from '../context/UserContext'
 import { usePlanModal } from '../context/PlanModalContext'
 import { markdownDarkComponents } from '../lib/markdown'
+import { deleteDocument, ingestDocument } from '../lib/rag'
+import { discardChat, saveChatMessages } from '../lib/planChat'
+import DeleteModal from './DeleteModal'
 
 export interface ChatMessage {
     role: 'user' | 'ai'
     content: string
     action?: 'none' | 'propose_steps'
     steps?: string[]
+    attachments?: string[]
+
 }
 
 
@@ -22,16 +30,151 @@ interface PlanChatModalProps {
     onClickConvertDirect: (steps: string) => void
 }
 
+interface AttachedFile {
+    id: string
+    file: File
+    status: 'uploading' | 'done' | 'error' | 'deleting'
+    error?: string
+    controller: AbortController
+}
 
+
+const MAX_FILES_PER_BATCH = 4
 
 export default function PlanChatModal({ onClickConvert, onClickConvertDirect }: PlanChatModalProps) {
     const { loaders, setLoaders } = useUsers()
-const { messages, setMessages, chatInput, setChatInput, initialPlan, steps, title } = usePlanModal()
+    const { messages, setMessages, chatInput, setChatInput, ragNamespace, hasUploadedDocs, setHasUploadedDocs } = usePlanModal()
     const [copiedMessage, setCopiedMessage] = useState<number | null>(null)
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const aiUrl = import.meta.env.VITE_AI_URL
-
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const hasInput = chatInput.trim().length > 0
+    const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([])
+
+    const [fileError, setFileError] = useState<string | null>(null)
+    const isUploading = attachedFiles.some(f => f.status === 'uploading')
+    const [deleteNamespace, setDeleteNamespace] = useState<string | null>(null)
+
+
+
+
+    // file upload handlers 
+    const startUpload = async (entry: AttachedFile) => {
+        try {
+            const targetNamespace = ragNamespace
+            await ingestDocument(entry.file, targetNamespace, aiUrl, entry.controller.signal)
+            setAttachedFiles(prev => prev.map(f => f.id === entry.id ? { ...f, status: 'done' } : f))
+            setHasUploadedDocs(true)
+        } catch (err: any) {
+            if (err?.name === 'AbortError') return // removed mid-upload — nothing to show
+            setAttachedFiles(prev => prev.map(
+                f => f.id === entry.id ? { ...f, status: 'error', error: err?.message || 'Upload failed' } : f
+            ))
+        }
+    }
+
+
+    const handleFileChange = (
+        e: React.ChangeEvent<HTMLInputElement>
+    ) => {
+        const files = Array.from(e.target.files || [])
+        if (files.length === 0) return
+
+
+        setAttachedFiles(prev => {
+            const remaining = MAX_FILES_PER_BATCH - prev.length
+            if (remaining <= 0) {
+                setFileError(`You can attach up to ${MAX_FILES_PER_BATCH} files at a time.`)
+                return prev
+            }
+
+            const accepted = files.slice(0, remaining)
+            if (files.length > remaining) {
+                setFileError(`Only ${remaining} more file${remaining === 1 ? '' : 's'} can be added (max ${MAX_FILES_PER_BATCH} per batch).`)
+            } else {
+                setFileError(null)
+            }
+
+            const newEntries: AttachedFile[] = accepted.map(file => ({
+                id: crypto.randomUUID(),
+                file,
+                status: 'uploading',
+                controller: new AbortController(),
+            }))
+
+            newEntries.forEach(entry => startUpload(entry))
+
+            return [...prev, ...newEntries]
+        })
+
+
+        e.target.value = ''
+    }
+
+
+    const handleRemoveFile = async (id: string) => {
+        const target = attachedFiles.find(f => f.id === id)
+
+        if (!target) return
+
+        // Upload hasn't finished yet.
+        // Just abort it and remove from UI.
+        if (target.status === 'uploading') {
+            target.controller.abort()
+
+            setAttachedFiles(prev =>
+                prev.filter(f => f.id !== id)
+            )
+
+            setFileError(null)
+            return
+        }
+
+        // Upload completed, so remove it from Pinecone.
+        if (target.status === 'done') {
+            try {
+                // Show delete loader
+                setAttachedFiles(prev =>
+                    prev.map(f =>
+                        f.id === id
+                            ? { ...f, status: 'deleting' }
+                            : f
+                    )
+                )
+
+                const targetNamespace =
+                    ragNamespace 
+
+                await deleteDocument(
+                    targetNamespace,
+                    target.file.name,
+                    aiUrl
+                )
+
+                setAttachedFiles(prev =>
+                    prev.filter(f => f.id !== id)
+                )
+
+                setFileError(null)
+
+            } catch (err: any) {
+                setFileError(
+                    err?.message || 'Failed to remove file'
+                )
+            }
+
+            return
+        }
+
+
+        setAttachedFiles(prev =>
+            prev.filter(f => f.id !== id)
+        )
+
+        setFileError(null)
+    }
+
+
 
     const handleCopyMessage = async (content: string, index: number) => {
         try {
@@ -52,11 +195,30 @@ const { messages, setMessages, chatInput, setChatInput, initialPlan, steps, titl
 
     const handleSendMessage = async (overrideText?: string) => {
         const userText = overrideText ?? chatInput
-        if (!userText.trim()) return
+        const readyFiles = attachedFiles.filter(f => f.status === 'done')
 
-        setMessages(prev => [...prev, { role: 'user', content: userText }])
+        if (!userText.trim() && readyFiles.length === 0) return
+        if (isUploading) return
+
+        const attachmentNames = readyFiles.map(f => f.file.name)
+        const namespace = ragNamespace 
+
+        const userMessage: ChatMessage = {
+            role: 'user',
+            content: userText,
+            ...(attachmentNames.length ? { attachments: attachmentNames } : {}),
+        }
+
+        setMessages(prev => [...prev, userMessage])
         if (!overrideText) setChatInput('')
+        setAttachedFiles([])
         setLoaders(true)
+
+        // Fire-and-forget — the message is already visible via local state above,
+        // so this never blocks or delays what the user sees.
+        saveChatMessages(namespace, [userMessage], aiUrl).catch(err =>
+            console.error('Failed to persist user message:', err)
+        )
 
         try {
             const res = await fetch(`${aiUrl}/api/ai-refine`, {
@@ -65,22 +227,40 @@ const { messages, setMessages, chatInput, setChatInput, initialPlan, steps, titl
                 body: JSON.stringify({
                     raw_text: buildTranscript(messages, userText),
                     instruction: 'Discuss and help refine this plan; respond conversationally.',
+                    ...(hasUploadedDocs ? { namespace, latest_message: userText } : {}),
                 }),
             })
             const resBody = await res.json()
 
             if (res.ok) {
-                setMessages(prev => [...prev, {
+                const aiMessage: ChatMessage = {
                     role: 'ai',
                     content: resBody.reply,
                     action: resBody.action,
                     steps: resBody.steps,
-                }])
+                }
+                setMessages(prev => [...prev, aiMessage])
+
+                saveChatMessages(namespace, [aiMessage], aiUrl).catch(err =>
+                    console.error('Failed to persist AI reply:', err)
+                )
             }
         } catch (error) {
             setMessages(prev => [...prev, { role: 'ai', content: 'Sorry, I could not process that.' }])
         } finally {
             setLoaders(false)
+        }
+    }
+
+
+    const handleClearChat = async () => {
+        const namespace = ragNamespace 
+        setMessages([])
+        try {
+            await discardChat(namespace, aiUrl)
+        } catch (err) {
+            console.error('Failed to discard persisted chat:', err)
+
         }
     }
 
@@ -99,28 +279,7 @@ const { messages, setMessages, chatInput, setChatInput, initialPlan, steps, titl
     }, [chatInput])
 
 
-    // On opening an existing plan for editing, prefill the input with a
-    // readable paragraph summary of its current state — once, only if the
-    // user hasn't already typed something, and only for edit sessions.
-
-    useEffect(() => {
-        if (!initialPlan || chatInput.trim() || messages.length > 0) return
-
-        const stepTexts = steps
-            .map(s => s.content.trim())
-            .filter(Boolean)
-
-        if (stepTexts.length === 0) return
-
-        const stepList = stepTexts.length === 1
-            ? stepTexts[0]
-            : stepTexts.slice(0, -1).join(', ') + ', and ' + stepTexts[stepTexts.length - 1]
-
-        const summary = `This plan${title ? ` ("${title}")` : ''} currently has ${stepTexts.length} step${stepTexts.length === 1 ? '' : 's'}: ${stepList}.`
-
-        setChatInput(summary)
-    }, [initialPlan])
-
+    
     return (
         <div className="flex flex-col min-h-0 h-full bg-slate-950 p-4 sm:p-5 text-slate-100">
 
@@ -141,7 +300,7 @@ const { messages, setMessages, chatInput, setChatInput, initialPlan, steps, titl
                 {messages.length > 0 && (
                     <button
                         type="button"
-                        onClick={() => setMessages([])}
+                        onClick={() => { setDeleteNamespace(ragNamespace) }}
                         className="group flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/80 px-2.5 py-1 text-[11px] font-medium text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/30 transition-all active:scale-95 shadow-sm"
                         title="Clear Conversation"
                     >
@@ -209,21 +368,24 @@ const { messages, setMessages, chatInput, setChatInput, initialPlan, steps, titl
                                                 title={copiedMessage === idx ? 'Copied' : 'Copy'}
                                                 className="absolute top-2 right-2 p-1 rounded-md text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors"
                                             >
-                                                {copiedMessage === idx ? (
-                                                    <Check className="h-3 w-3 text-indigo-400" />
-                                                ) : (
-                                                    <Copy className="h-3 w-3" />
-                                                )}
+                                                {copiedMessage === idx ? <Check className="h-3 w-3 text-indigo-400" /> : <Copy className="h-3 w-3" />}
                                             </button>
+                                            {msg.attachments && msg.attachments.length > 0 && (
+                                                <div className="mb-2 flex flex-wrap gap-1.5">
+                                                    {msg.attachments.map((name, i) => (
+                                                        <span key={i} className="flex items-center gap-1 rounded-md border border-slate-700 bg-slate-800/80 px-1.5 py-0.5 text-[10px] text-slate-300">
+                                                            <Paperclip className="h-2.5 w-2.5 text-indigo-400" />
+                                                            <span className="max-w-28 truncate">{name}</span>
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
                                             <span className="whitespace-pre-wrap">{msg.content}</span>
                                         </div>
-                                        <div className="p-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 shrink-0 mt-0.5">
-                                            <User className="h-3.5 w-3.5" />
-                                        </div>
+
                                     </div>
                                 )
                             }
-
                             return (
                                 <div key={idx} className="flex items-start gap-3 text-xs w-full">
                                     <div className="p-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 shrink-0 mt-0.5">
@@ -321,6 +483,39 @@ const { messages, setMessages, chatInput, setChatInput, initialPlan, steps, titl
             {/* Input Box */}
             <div className="shrink-0 pt-2 px-2 sm:px-6">
                 <div className="rounded-lg border border-slate-800 bg-slate-900/90 focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/20 transition-all p-3 shadow-lg">
+
+                    {attachedFiles.length > 0 && (
+                        <div className="mb-2 flex flex-wrap gap-1.5">
+                            {attachedFiles.map(f => (
+                                <div
+                                    key={f.id}
+                                    className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] ${f.status === 'error'
+                                        ? 'border-rose-500/40 bg-rose-500/10 text-rose-300'
+                                        : 'border-slate-700 bg-slate-800 text-slate-300'
+                                        }`}
+                                >
+                                    {f.status === 'uploading' && <Loader2 className="h-3 w-3 text-indigo-400 animate-spin" />}
+                                    {f.status === 'done' && <Check className="h-3 w-3 text-emerald-400" />}
+                                    {f.status === 'error' && <AlertCircle className="h-3 w-3 text-rose-400" />}
+                                    {f.status === 'deleting' && (
+                                        <Loader2 className="h-3 w-3 text-rose-400 animate-spin" />
+                                    )}
+                                    <span className="max-w-32 truncate">{f.file.name}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleRemoveFile(f.id)}
+                                        className="ml-1 text-slate-500 hover:text-red-400"
+                                        title="Remove file"
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {fileError && <p className="mb-2 text-[10px] text-rose-400">{fileError}</p>}
+
                     <textarea
                         ref={textareaRef}
                         rows={1}
@@ -333,41 +528,70 @@ const { messages, setMessages, chatInput, setChatInput, initialPlan, steps, titl
 
                     <div className="flex items-center justify-between pt-2 mt-1 border-t border-slate-800/60">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                            {hasInput && (
-                                <>
-                                    <button
-                                        type="button"
-                                        onClick={() => onClickConvertDirect(chatInput)}
-                                        disabled={loaders}
-                                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-medium text-[11px] transition-all active:scale-95 disabled:opacity-50"
-                                    >
-                                        {loaders ? (
-                                            <><Loader2 className="h-3 w-3 animate-spin text-indigo-400" /><span>Converting...</span></>
-                                        ) : (
-                                            <><NotepadTextDashed className="h-3 w-3 text-indigo-400" /><span>Convert to Steps</span></>
-                                        )}
-                                    </button>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                multiple
+                                className="hidden"
+                                onChange={handleFileChange}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={loaders || attachedFiles.length >= MAX_FILES_PER_BATCH}
+                                title={attachedFiles.length >= MAX_FILES_PER_BATCH ? `Max ${MAX_FILES_PER_BATCH} files per message` : 'Attach files'}
+                                className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-700 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-indigo-300 hover:border-indigo-500/40 transition-all active:scale-95 disabled:opacity-50"
+                            >
+                                <Paperclip className="h-3.5 w-3.5" />
+                            </button>
 
-                                </>
+                            {hasInput && (
+                                <button
+                                    type="button"
+                                    onClick={() => onClickConvertDirect(chatInput)}
+                                    disabled={loaders}
+                                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-medium text-[11px] transition-all active:scale-95 disabled:opacity-50"
+                                >
+                                    {loaders ? (
+                                        <>
+                                            <Loader2 className="h-3 w-3 animate-spin text-indigo-400" />
+                                            <span>Converting...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <NotepadTextDashed className="h-3 w-3 text-indigo-400" />
+                                            <span>Convert to Steps</span>
+                                        </>
+                                    )}
+                                </button>
                             )}
                         </div>
 
                         <button
                             type="button"
                             onClick={() => handleSendMessage()}
-                            disabled={loaders || !hasInput}
-                            title="Send Message"
+                            disabled={loaders || isUploading || (!hasInput && attachedFiles.filter(f => f.status === 'done').length === 0)}
+                            title={isUploading ? 'Waiting for upload to finish...' : 'Send Message'}
                             className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:hover:bg-indigo-600 text-white transition-all active:scale-95 shadow-sm"
                         >
-                            {loaders ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                                <ArrowUp className="h-4 w-4" />
-                            )}
+                            {loaders ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
                         </button>
                     </div>
                 </div>
             </div>
+
+
+
+            {Boolean(deleteNamespace) && (
+                <DeleteModal
+                    isOpen
+                    onClose={() => setDeleteNamespace("")}
+                    onConfirm={handleClearChat}
+                    title="Clear Chat History"
+                />
+            )}
+
+
         </div>
     )
 }

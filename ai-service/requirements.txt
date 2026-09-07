@@ -12,3 +12,7 @@ bcrypt<5.0.0
 pyjwt
 requests
 pydantic[email]
+pypdf
+python-docx
+google-genai
+pinecone

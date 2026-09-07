@@ -13,6 +13,8 @@ class RefineRequest(BaseModel):
     raw_text: str
     instruction: str = "Fix technical typos, structure chronologically, and clarify missing engineering details."
     mode: str = "chat"  # "chat" or "draft"
+    namespace: str | None = None       # draft_id or plan_id — None means "no RAG for this call"
+    latest_message: str | None = None  # the user's current turn, used as the retrieval query
 
 
 
@@ -118,3 +120,77 @@ class StepSyncRequest(BaseModel):
     isCompleted: bool
 
     
+
+
+# ==========================================
+# PLAN CHAT STORAGE (saved only when a plan is saved)
+
+# ==========================================
+
+
+
+class PlanConversation(SQLModel, table=True):
+    __tablename__ = "plan_conversation"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    # Lookup key, mirrors the Pinecone namespace exactly: the client-generated
+    # draftId before a plan is saved, overwritten with str(plan_id) once it is.
+    namespace: str = Field(unique=True, index=True, nullable=False)
+    # Denormalized copy of the same fact once known — null until the plan is
+    # saved, then set once at promote time alongside namespace. Never
+    # written to twice, so nothing to keep in sync after that point.
+    plan_id: Optional[int] = Field(default=None, unique=True, index=True)
+    owner_email: str = Field(nullable=False, index=True)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column_kwargs={"onupdate": lambda: datetime.now(timezone.utc)},
+    )
+
+class PlanMessage(SQLModel,table=True):
+    __tablename__="plan_message"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    conversation_id : int = Field(foreign_key="plan_conversation.id",nullable=False,index=True)
+    role : str = Field(nullable=False)
+    content : str
+    action: Optional[str] = None  # 'none' | 'propose_steps' — meaningful for role='ai' only
+    steps: Optional[list[str]] = Field(default=None, sa_column=Column(JSON))
+    attachments: Optional[list[str]] = Field(default=None, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# ==========================================
+# PLAN CHAT SCHEMAS (Request / Response DTOs)
+# ==========================================
+
+class PlanCHatMessageIn(BaseModel):
+    role : str
+    content : str
+    action : Optional[str] = None
+    steps : Optional[list[str]] = None
+    attachments : Optional[list[str]] = None
+
+class SavePlanChatRequest(BaseModel):
+    namespace : str
+    messages : list[PlanCHatMessageIn]
+
+
+class PlanChatMessageOut(BaseModel):
+    role: str
+    content: str
+    action: Optional[str] = None
+    steps: Optional[list[str]] = None
+    attachments: Optional[list[str]] = None
+    created_at: datetime
+
+
+class PlanChatResponse(BaseModel):
+    messages: list[PlanChatMessageOut]
+
+class PromoteChatRequest(BaseModel):
+    draft_id: str
+    plan_id: str
+
+
+

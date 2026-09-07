@@ -9,6 +9,8 @@ from api.convert_steps import router as convert_router
 from api.refine_plan import router as refine_router
 from api.auth_routes import router as auth_router
 from api.agent_routes import router as agent_router
+from rag.rag_router import router as rag_router
+from api.chat_routes import router as chat_router
 
 
 app = FastAPI(title="AI Service for Devboard")# Full Permissive CORS Policy
@@ -25,6 +27,8 @@ app.include_router(convert_router)
 app.include_router(refine_router)
 app.include_router(auth_router)
 app.include_router(agent_router)
+app.include_router(rag_router)
+app.include_router(chat_router)
 
 
 

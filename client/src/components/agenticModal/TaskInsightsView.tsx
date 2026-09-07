@@ -121,7 +121,7 @@ const VerticalBarChart: React.FC<VerticalBarChartProps> = ({ title, icon, data }
               </span>
 
               {/* The Vertical Bar */}
-              <div className="w-2 bg-slate-300/90 rounded-t-lg overflow-hidden flex items-end h-full">
+                <div className="w-2 bg-slate-300/90 rounded-full overflow-hidden flex items-end h-full p-[1px]  shadow-inner  transition-colors">
                 <div
                   className={`w-full ${item.bgGradient} transition-all duration-500 rounded-t-lg group-hover:brightness-125 shadow-sm`}
                   style={{ height: `${heightPercent}%` }}
