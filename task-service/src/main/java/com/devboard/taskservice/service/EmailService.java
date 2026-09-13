@@ -14,11 +14,11 @@ import org.springframework.stereotype.Service;
 import com.devboard.taskservice.client.AuthClient;
 
 @Service
-
 public class EmailService {
     private final AuthClient authClient;
     private final JavaMailSender mailSender;
-    @Value("${spring.mail.username}")
+
+    @Value("${app.mail.from-email:devboardorg@gmail.com}")
     private String fromEmail;
 
     @Value("${app.frontend.url}")
@@ -38,7 +38,6 @@ public class EmailService {
             try {
                 exists = authClient.checkUserExists(email);
             } catch (Exception e) {
-                // Log warning and fallback gracefully so email dispatch is not blocked
                 System.err.println("Failed to verify user existence via AuthClient: " + e.getMessage());
                 exists = false;
             }
@@ -72,28 +71,20 @@ public class EmailService {
         }
     }
 
-   
     @Async
     public void sendTaskAssignments(List<String> assignedEmails, String taskTitle) {
-
         processTaskAssignments(assignedEmails, taskTitle);
-
     }
 
-    // Method 2: For PUT (Filters and sends emails ONLY to newly added assignees)
     @Async
     public void sendTaskAssignmentsOnUpdate(List<String> oldEmails, List<String> newEmails, String taskTitle) {
         if (newEmails == null || newEmails.isEmpty()) {
             return;
         }
-        // Create a list of new emails and strip out any emails that were already
-        // present
         List<String> newlyAddedEmails = new ArrayList<>(newEmails);
         if (oldEmails != null) {
             newlyAddedEmails.removeAll(oldEmails);
         }
-
-        // Send emails only to the newly added assignees
         processTaskAssignments(newlyAddedEmails, taskTitle);
     }
 
@@ -107,10 +98,8 @@ public class EmailService {
 
         if (assignedEmails != null) {
             recipients.addAll(assignedEmails);
-
         }
 
-        // Build a structured notification message
         String emailText = String.format(
                 "Greetings! A task in your workspace has been marked as DONE.\n\n" +
                         "📌 Task Details:\n" +
@@ -127,6 +116,7 @@ public class EmailService {
 
         for (String email : recipients) {
             SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
             message.setTo(email);
             message.setSubject("🎉 Task Completed: " + taskTitle);
             message.setText(emailText);
@@ -141,7 +131,6 @@ public class EmailService {
             return;
         }
 
-        // Filter out users who are still assigned in the new list
         List<String> removedEmails = new ArrayList<>(oldEmails);
         if (newEmails != null) {
             removedEmails.removeAll(newEmails);
@@ -161,6 +150,7 @@ public class EmailService {
 
         for (String email : removedEmails) {
             SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
             message.setTo(email);
             message.setSubject("ℹ️ Removed from Task: " + taskTitle);
             message.setText(emailText);

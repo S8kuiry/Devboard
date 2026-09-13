@@ -79,10 +79,15 @@ export default function TaskModal({ onClose, onSubmit, currentUserEmail, initial
       dueDate: formData.dueDate || null
     };
 
+    // Optimistic task added before server request
+    const tempId = -Date.now();
+    const optimisticTask: Task = { ...data, id: tempId } as Task;
+    onSubmit(optimisticTask);
+    onClose();
     setIsSaving(true);
     try {
       const res = await fetch(
-        isEdit ? `${taskUrl}/tasks/${initialTask.id}` : `${taskUrl}/tasks`,
+        isEdit ? `${taskUrl}/tasks/${initialTask!.id}` : `${taskUrl}/tasks`,
         {
           method: isEdit ? 'PUT' : 'POST',
           headers: { "Content-Type": "application/json" },
@@ -90,19 +95,20 @@ export default function TaskModal({ onClose, onSubmit, currentUserEmail, initial
         }
       );
       const resBody = await res.json();
-      localStorage.removeItem(`task_insights_cache_${currentUserEmail}`)
-
       if (!res.ok) {
         console.error(resBody.error || `Failed to ${isEdit ? 'update' : 'create'} task`);
+        // Remove optimistic task on failure
+        onSubmit({ ...optimisticTask, id: undefined } as any);
         return;
       }
-
       toast.success(`Task ${isEdit ? 'updated' : 'created'} successfully`);
+      // Replace optimistic task with real task from server
       onSubmit(resBody as Task);
-      onClose();
     } catch (error) {
       console.error("Something went wrong");
       console.log("Error:", error);
+      // Remove optimistic task on error
+      onSubmit({ ...optimisticTask, id: undefined } as any);
     } finally {
       setIsSaving(false);
     }
@@ -255,8 +261,10 @@ export default function TaskModal({ onClose, onSubmit, currentUserEmail, initial
 
                 {/* Search Autocomplete Suggestions List */}
                 {showSuggestions && suggestions.length > 0 && (
-                  <div className="absolute left-0 right-0 top-full mt-1 z-50 max-h-40 overflow-y-auto rounded-xl border border-slate-700 bg-slate-900/95 py-1 shadow-2xl backdrop-blur-xl">
-                    {suggestions.map((email) => (
+                  <div className="absolute left-0 right-0 top-full mt-1 z-110  max-h-40 overflow-y-auto rounded-xl border border-slate-700 bg-slate-900/95 py-1 shadow-2xl backdrop-blur-xl">
+                    {suggestions.map((email) =>{
+                      console.log(email)
+                      return(
                       <button
                         key={email}
                         type="button"
@@ -269,7 +277,7 @@ export default function TaskModal({ onClose, onSubmit, currentUserEmail, initial
                         <User className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
                         <span className="truncate">{email}</span>
                       </button>
-                    ))}
+                    )})}
                   </div>
                 )}
               </div>

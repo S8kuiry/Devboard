@@ -1,27 +1,29 @@
 
 services:
-  # auth-service:
-  #   build: ./auth-service
-  #   container_name: auth-service
-  #   ports:
-  #     - "8080:8080"
-  #   restart: unless-stopped
-  #   develop:
-  #     watch:
-  #       - action: rebuild
-  #         path: ./auth-service
-  #         ignore:
-  #           - target/
-  #           - .git/
+  ai-service:
+    build: ./ai-service
+    container_name: devboard-ai-service
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./ai-service/.env
+    restart: unless-stopped
+    develop:
+      watch:
+        - action: rebuild
+          path: ./ai-service
+          ignore:
+            - .venv/
+            - __pycache__/
+            - .git/
+  
 
   task-service:
     build: ./task-service
     container_name: task-service
     ports:
       - "8081:8081"
-    # environment:
-    #   - AUTH_SERVICE_URL=http://auth-service:8080
-    
+   
     restart: unless-stopped
     develop:
       watch:
@@ -30,26 +32,6 @@ services:
           ignore:
             - target/
             - .git/
-
-  # api-gateway:
-  #   build: ./api-gateway
-  #   container_name: api-gateway
-  #   ports:
-  #     - "8060:8060"
-  #   environment:
-  #     - AUTH_SERVICE_URL=http://auth-service:8080
-  #     - TASK_SERVICE_URL=http://task-service:8081
-  #   depends_on:
-  #     - auth-service
-  #     - task-service
-  #   restart: unless-stopped
-  #   develop:
-  #     watch:
-  #       - action: rebuild
-  #         path: ./api-gateway
-  #         ignore:
-  #           - target/
-  #           - .git/
 
   client:
     build: ./client

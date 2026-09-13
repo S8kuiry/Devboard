@@ -268,7 +268,7 @@ export default function AssignedTask() {
                 {/* Column Header */}
                 <div className="flex items-center justify-between pb-2 border-b border-white/10">
                   <div className="flex items-center gap-2">
-                    <span className={`h-2 w-2 rounded-full ${column.dot}`} />
+                    <span className={`h-2 w-2 rounded-full ${column.dot} animate-pulse `} />
                     <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-200">
                       {column.label}
                     </h2>

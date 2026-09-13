@@ -74,6 +74,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch(`${authUrl}/auth/emails`);
       if (!res.ok) throw new Error("Failed to fetch emails");
       const data: string[] = await res.json();
+      console.log(data)
       setEmails(data);
     } catch (error) {
       console.error("Error fetching user emails:", error);

@@ -1,0 +1,26 @@
+# Virtual Environments
+.venv/
+venv/
+env/
+
+# Python Cache & Bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Version Control
+.git/
+.gitignore
+
+# Secrets & Environment Files
+.env
+*.env.local
+
+# IDE & OS Files
+.vscode/
+.idea/
+.DS_Store
+
+# Build Artifacts & Logs
+*.log

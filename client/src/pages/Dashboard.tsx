@@ -51,13 +51,38 @@ export default function Dashboard() {
   }
 
   // Receives the task as saved by the server, so it already carries a real id.
-  const handleSaveTask = (savedTask: Task) => {
-    setTasks(prev => prev.some(t => t.id === savedTask.id)
-      ? prev.map(t => t.id === savedTask.id ? savedTask : t)
-      : [...prev, savedTask])
-    fetchTasks();
-    closeModal()
-  }
+  // Inside Dashboard.tsx
+
+const handleSaveTask = async (savedTask: Task) => {
+  // 1. Ensure required array and string properties exist to prevent filter crashes
+  const formattedTask: Task = {
+    ...savedTask,
+    assignedEmails: savedTask.assignedEmails || [],
+    status: savedTask.status || 'TODO',
+    priority: savedTask.priority || 'MEDIUM'
+  };
+
+  // 2. Optimistically update tasks state and persist to localStorage
+  setTasks(prev => {
+    const exists = prev.some(t => t.id === formattedTask.id);
+    const updated = exists
+      ? prev.map(t => (t.id === formattedTask.id ? formattedTask : t))
+      : [formattedTask, ...prev];
+    // Sync to localStorage for immediate availability
+    try {
+      localStorage.setItem('tasks', JSON.stringify(updated));
+    } catch {}
+    return updated;
+  });
+
+  // 3. Close modal immediately
+  closeModal();
+
+  // No immediate refetch needed; state is already updated
+
+};
+
+
   const handleCloseTaskModal = () => {
     closeModal()
   }
