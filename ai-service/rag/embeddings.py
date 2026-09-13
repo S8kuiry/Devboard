@@ -15,8 +15,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL")
-OUTPUT_DIMENSIONS = int(os.environ.get("EMBEDDING_DIMENSION"))  # must match the Pinecone index dimension exactly
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "gemini-embedding-2")
+OUTPUT_DIMENSIONS = int(os.environ.get("EMBEDDING_DIMENSION", "1536"))  # must match the Pinecone index dimension exactly
 BATCH_SIZE = 40
 MAX_RETRIES = 3
 
