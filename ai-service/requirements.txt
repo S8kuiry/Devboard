@@ -16,3 +16,4 @@ pypdf
 python-docx
 google-genai
 pinecone
+python-multipart
