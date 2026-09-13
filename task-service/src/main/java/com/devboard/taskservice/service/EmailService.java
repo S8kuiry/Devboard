@@ -5,6 +5,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -15,13 +17,17 @@ import com.devboard.taskservice.client.AuthClient;
 
 @Service
 public class EmailService {
+
+    private static final Logger log = LoggerFactory.getLogger(EmailService.class);
+
     private final AuthClient authClient;
     private final JavaMailSender mailSender;
 
-    @Value("${app.mail.from-email:devboardorg@gmail.com}")
+    // Updated fallback to match your Gmail SMTP account
+    @Value("${app.mail.from-email:subharthykuiry12345@gmail.com}")
     private String fromEmail;
 
-    @Value("${app.frontend.url}")
+    @Value("${app.frontend.url:https://devboard-swart.vercel.app}")
     private String frontendUrl;
 
     public EmailService(AuthClient authClient, JavaMailSender mailSender) {
@@ -38,12 +44,14 @@ public class EmailService {
             try {
                 exists = authClient.checkUserExists(email);
             } catch (Exception e) {
-                System.err.println("Failed to verify user existence via AuthClient: " + e.getMessage());
+                log.error("Failed to verify user existence for {} via AuthClient: {}", email, e.getMessage());
                 exists = false;
             }
+
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
             message.setTo(email);
+
             if (Boolean.TRUE.equals(exists)) {
                 message.setSubject("📌 New Task Assigned: " + taskTitle);
                 message.setText(String.format(
@@ -67,7 +75,13 @@ public class EmailService {
                         taskTitle,
                         frontendUrl));
             }
-            mailSender.send(message);
+
+            try {
+                mailSender.send(message);
+                log.info("Task assignment email successfully sent to {}", email);
+            } catch (Exception e) {
+                log.error("Failed to send task assignment email to {}: {}", email, e.getMessage());
+            }
         }
     }
 
@@ -115,13 +129,18 @@ public class EmailService {
                 frontendUrl);
 
         for (String email : recipients) {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromEmail);
-            message.setTo(email);
-            message.setSubject("🎉 Task Completed: " + taskTitle);
-            message.setText(emailText);
+            try {
+                SimpleMailMessage message = new SimpleMailMessage();
+                message.setFrom(fromEmail);
+                message.setTo(email);
+                message.setSubject("🎉 Task Completed: " + taskTitle);
+                message.setText(emailText);
 
-            mailSender.send(message);
+                mailSender.send(message);
+                log.info("Task completion email successfully sent to {}", email);
+            } catch (Exception e) {
+                log.error("Failed to send task completion email to {}: {}", email, e.getMessage());
+            }
         }
     }
 
@@ -149,13 +168,18 @@ public class EmailService {
                 taskTitle);
 
         for (String email : removedEmails) {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromEmail);
-            message.setTo(email);
-            message.setSubject("ℹ️ Removed from Task: " + taskTitle);
-            message.setText(emailText);
+            try {
+                SimpleMailMessage message = new SimpleMailMessage();
+                message.setFrom(fromEmail);
+                message.setTo(email);
+                message.setSubject("ℹ️ Removed from Task: " + taskTitle);
+                message.setText(emailText);
 
-            mailSender.send(message);
+                mailSender.send(message);
+                log.info("Task removal email successfully sent to {}", email);
+            } catch (Exception e) {
+                log.error("Failed to send task removal email to {}: {}", email, e.getMessage());
+            }
         }
     }
 }
